@@ -1,6 +1,5 @@
-#!/bin/sh
+#!/usr/bin/env sh
 ########################################################
-# Author: Max <kovganm@gmail.com>
 # this script installs Go on a linux system.
 # it currently only supports Debian like systems:
 # Debian/Ubuntu/Xandros/ etc.

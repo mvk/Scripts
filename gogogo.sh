@@ -20,8 +20,11 @@ GOOS=linux
 GOBIN=${GOROOT}/bin
 
 echo "Go Programming Language install Script"
+echo "++++++++++++++++++++++++++++++++++++++"
 
 echo "Stage I: System Detection"
+echo "++++++++++++++++++++++++++++++++++++++"
+
 if [ -r /etc/debian_version ]; then
 	echo "NOTE: Debian Detected (supported)"
 	echo "NOTE: Assuming apt-get is set up!"
@@ -54,27 +57,28 @@ fi
 
 case `uname -m` in
 	i?86)
-		echo "uname returned: `uname -m`"
+		msg "uname returned: `uname -m`"
 		GOARCH=386
 		;;
 	x86_64)
 
-		echo "uname returned: `uname -m`"
+		msg "uname returned: `uname -m`"
 		GOARCH="amd64"
 	;;
 	*)
-		echo "Wrong Architecture! Exitting"
+		echo "FATAL ERROR: Wrong Architecture! Exitting"
 		exit 1
 	;;
 esac
 	
 echo "Stage II: Prerequisite Packages"
+echo "++++++++++++++++++++++++++++++++++++++"
 ## install devtools and stuff:
-echo "Installing packages: ${PKGLIST}"
+msg "Installing packages: ${PKGLIST}"
 sudo ${PKGMGMT} ${PKGMGMT_INSTALL_FLAGS} ${PKGLIST}
 
 
-echo -n "Stage III: Determine the shell type ..."
+echo -n "Stage III: Shell Type: "
 UN=`whoami`
 USH=`getent passwd ${UN} | cut -d: -f7`
 echo ${USH} | grep csh > /dev/null
@@ -84,16 +88,18 @@ if [ $? -ne 0 ]; then
 	SHCONF=~/.bashrc
 	SETENV="export "
 	EQUAL="="
-	echo "sh-like shell!"
+	echo "sh!"
 else
 	# we're on csh-like shell
 	SHCONF=~/.cshrc
 	SETENV="setenv "
 	EQUAL=" "
-	echo "csh-like shell!"
+	echo "csh!"
 fi
+echo "++++++++++++++++++++++++++++++++++++++"
 
-echo "Stage IV: Setting up shell environment"
+echo "Stage IV: Setup shell environment"
+echo "++++++++++++++++++++++++++++++++++++++"
 
 if [ ! -r ${SHCONF} ]; then
 	touch ${SHCONF}
@@ -145,6 +151,7 @@ if [ -d ${GOROOT} ]; then
 fi
 
 echo "Stage V: Fetching Go Source Code"
+echo "++++++++++++++++++++++++++++++++++++++"
 hg clone -r release ${GOURL} ${GOROOT}
 
 if [ 0 -ne $? ]; then
@@ -164,6 +171,7 @@ mkdir -p ${GOBIN}
 cd ${GOROOT}/src
 
 echo "Stage VI (the last): Building Go"
+echo "++++++++++++++++++++++++++++++++++++++"
 ./all.bash
 if [ $? -eq 0 ]; then
 	echo "Hooray! You have Go Installed!"

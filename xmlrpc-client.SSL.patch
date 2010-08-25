@@ -1,0 +1,105 @@
+*** xmlrpc/client.rb.orig	2008-07-16 20:07:44.000000000 +0300
+--- xmlrpc/client.rb	2010-08-25 19:32:20.000000000 +0300
+***************
+*** 293,299 ****
+      # Constructors -------------------------------------------------------------------
+  
+      def initialize(host=nil, path=nil, port=nil, proxy_host=nil, proxy_port=nil, 
+!                    user=nil, password=nil, use_ssl=nil, timeout=nil)
+  
+        @http_header_extra = nil
+        @http_last_response = nil 
+--- 293,299 ----
+      # Constructors -------------------------------------------------------------------
+  
+      def initialize(host=nil, path=nil, port=nil, proxy_host=nil, proxy_port=nil, 
+!                    user=nil, password=nil, use_ssl=nil, timeout=nil, cacert=nil, cert=nil, key=nil)
+  
+        @http_header_extra = nil
+        @http_last_response = nil 
+***************
+*** 311,316 ****
+--- 311,319 ----
+        if use_ssl
+          require "net/https"
+          @port = port || 443
++ 		@cacert = cacert 
++ 		@cert = cert 
++ 		@key = key 
+        else
+          @port = port || 80
+        end
+***************
+*** 326,332 ****
+        # HTTP object for synchronous calls
+        Net::HTTP.version_1_2
+        @http = Net::HTTP.new(@host, @port, @proxy_host, @proxy_port) 
+!       @http.use_ssl = @use_ssl if @use_ssl
+        @http.read_timeout = @timeout
+        @http.open_timeout = @timeout
+  
+--- 329,347 ----
+        # HTTP object for synchronous calls
+        Net::HTTP.version_1_2
+        @http = Net::HTTP.new(@host, @port, @proxy_host, @proxy_port) 
+! 	  if @use_ssl
+!         @http.use_ssl = @use_ssl
+! 		if nil != @cacert
+!           @http.ca_file = @cacert
+!           @http.verify_mode = OpenSSL::SSL::VERIFY_PEER
+!           @http.verify_depth = 5
+!         else	
+!           @http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+!         end
+!         @http.cert = @cert
+!         @http.key = @key
+!       end
+! 
+        @http.read_timeout = @timeout
+        @http.open_timeout = @timeout
+  
+***************
+*** 366,372 ****
+        hash.each { |k,v| h[k.to_s.downcase] = v }
+  
+        self.new(h['host'], h['path'], h['port'], h['proxy_host'], h['proxy_port'], h['user'], h['password'],
+!                h['use_ssl'], h['timeout'])
+      end
+  
+      alias new_from_hash new3
+--- 381,387 ----
+        hash.each { |k,v| h[k.to_s.downcase] = v }
+  
+        self.new(h['host'], h['path'], h['port'], h['proxy_host'], h['proxy_port'], h['user'], h['password'],
+!                h['use_ssl'], h['timeout'], h['cacert'], h['cert'], h['key'])
+      end
+  
+      alias new_from_hash new3
+***************
+*** 411,417 ****
+        if ok
+          param
+        else
+!         raise param
+        end
+      end 
+  
+--- 426,432 ----
+        if ok
+          param
+        else
+!        raise param
+        end
+      end 
+  
+***************
+*** 550,555 ****
+--- 565,572 ----
+        end
+  
+        ct = parse_content_type(resp["Content-Type"]).first
++ 		
++ 
+        if ct != "text/xml"
+          if ct == "text/html"
+            raise "Wrong content-type (received '#{ct}' but expected 'text/xml'): \n#{data}"

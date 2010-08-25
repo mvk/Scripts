@@ -1,0 +1,121 @@
+diff -crB trac4r-1.2.3/lib/trac4r/query.rb trac4r-1.2.3.orig/lib/trac4r/query.rb
+*** trac4r-1.2.3/lib/trac4r/query.rb	2010-08-23 14:14:15.000000000 +0300
+--- trac4r-1.2.3.orig/lib/trac4r/query.rb	2010-08-13 16:16:01.000000000 +0300
+***************
+*** 26,32 ****
+  
+  module Trac
+    class Query
+!     def initialize url,user,pass,cacert=nil,cert=nil,key=nil
+        if user && pass
+          url = url.sub 'xmlrpc','login/xmlrpc'
+        end
+--- 26,32 ----
+  
+  module Trac
+    class Query
+!     def initialize url,user,pass
+        if user && pass
+          url = url.sub 'xmlrpc','login/xmlrpc'
+        end
+***************
+*** 35,43 ****
+        @host = uri.host
+        @path = uri.path
+        @port = uri.port
+-       @cacert = cacert
+-       @cert = cert
+-       @key = key
+        @connection = XMLRPC::Client.new(@host,
+                                         @path,
+                                         @port,
+--- 35,40 ----
+***************
+*** 46,64 ****
+                                         user,
+                                         pass,
+                                         use_ssl,
+!                                        nil,
+!                                        @cacert,
+!                                        @cert,
+!                                        @key
+                                         )
+      end
+      
+      def query command, *args
+! #      begin
+          return @connection.call(command,*args)
+! #      rescue => e
+! #        raise TracException.new(e.message,@host,@port,@path,command,args,e)
+! #      end
+      end
+    end
+  end
+--- 43,58 ----
+                                         user,
+                                         pass,
+                                         use_ssl,
+!                                        nil
+                                         )
+      end
+      
+      def query command, *args
+!       begin
+          return @connection.call(command,*args)
+!       rescue => e
+!         raise TracException.new(e.message,@host,@port,@path,command,args,e)
+!       end
+      end
+    end
+  end
+diff -crB trac4r-1.2.3/lib/trac4r.rb trac4r-1.2.3.orig/lib/trac4r.rb
+*** trac4r-1.2.3/lib/trac4r.rb	2010-08-13 16:37:53.000000000 +0300
+--- trac4r-1.2.3.orig/lib/trac4r.rb	2010-08-13 16:00:17.000000000 +0300
+***************
+*** 55,78 ****
+  # 
+  module Trac
+    # returns a new instance of Trac::Base
+!   def self.new url, user=nil,pass=nil, cacert=nil, cert=nil, key=nil
+!     Base.new url,user,pass,cacert,cert,key
+    end
+    
+    class Base
+      attr_reader :wiki, :tickets, :user, :pass
+!     def initialize url, user, pass, cacert=nil, cert=nil, key=nil
+        @user = user
+        @pass = pass
+        @url = url
+-       @cacert = cacert
+-       @cert = cert
+-       @key = key
+        @url.gsub!(/\/$/,'')
+        if @url.split('/').last != 'xmlrpc'
+          @url = url+'/xmlrpc'
+        end
+!       @connection = Query.new(@url,@user,@pass, @cacert, @cert, @key)
+        @wiki = Wiki.new(@connection)
+        @tickets = Tickets.new(@connection)
+      end
+--- 55,75 ----
+  # 
+  module Trac
+    # returns a new instance of Trac::Base
+!   def self.new url, user=nil,pass=nil
+!     Base.new url,user,pass
+    end
+    
+    class Base
+      attr_reader :wiki, :tickets, :user, :pass
+!     def initialize url,user,pass
+        @user = user
+        @pass = pass
+        @url = url
+        @url.gsub!(/\/$/,'')
+        if @url.split('/').last != 'xmlrpc'
+          @url = url+'/xmlrpc'
+        end
+!       @connection = Query.new(@url,@user,@pass)
+        @wiki = Wiki.new(@connection)
+        @tickets = Tickets.new(@connection)
+      end

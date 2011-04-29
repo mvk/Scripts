@@ -3,31 +3,14 @@
 import sys
 import psutil
 import commands
-#def get_procs_by_cmd_and_user(c,u)
-#   result = []
-#   for p in psutil.process_iter():
-#
-#      if p.cmdline[0] == c and p.username == u:
-#         result.append(p)
-#   return result
 
-
-def is_distro_in(l):
+def distro_id_in(l):
     cmd = 'lsb_release -i'
     res = commands.getoutput(cmd)
     d = res.split('\t')[1]
     if d in l:
         return True
     return False
-
-def is_debian():
-    supported_distros=list(['Debian','Ubuntu','Xandros'])
-    return is_distro_in(supported_distros)
-
-def is_redhat():
-    supported_distros=list(['RedHat','CentOS','Scientific Linux'])
-    return is_distro_in(supported_distros)
-
 
 def get_procs_by_cmd_and_user(c,u):
    result = []
@@ -42,6 +25,13 @@ def get_procs_by_cmd_and_user(c,u):
       result.append(p)
    return result
 
+def is_debian():
+    supported_distros=list(['Debian','Ubuntu','Xandros'])
+    return distro_id_in(supported_distros)
+
+def is_redhat():
+    supported_distros=list(['RedHat','CentOS','Scientific Linux'])
+    return distro_id_in(supported_distros)
 
 def get_apaches_on_debian():
    return get_procs_by_cmd_and_user('/usr/sbin/apache2', 'www-data')

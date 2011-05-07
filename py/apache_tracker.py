@@ -15,14 +15,20 @@ def distro_id_in(l):
 def get_procs_by_cmd_and_user(c,u):
    result = []
    for p in psutil.process_iter():
-      if p.username != u:
-         continue
-      if p.cmdline.__class__ != list:
-         if p.cmdline != c:
-            continue
-      elif p.cmdline[0] != c:
-         continue
-      result.append(p)
+      try:
+          if p.username != u:
+             continue
+          if p.cmdline.__class__ != list:
+             if p.cmdline != c:
+                continue
+          elif p.cmdline[0] != c:
+             continue
+          result.append(p)
+      except psutil.error.NoSuchProcess, e:
+        ### maybe a warning!
+        continue
+
+
    return result
 
 def is_debian():

@@ -46,13 +46,19 @@ def get_apaches_on_rhel():
    return get_procs_by_cmd_and_user('/usr/sbin/httpd', 'apache')
 
 if is_debian():
+#    print 'setting apache for Debian'
     get_apaches = get_apaches_on_debian
 elif is_redhat():
+#    print 'setting apache for RedHat'
     get_apaches = get_apaches_on_rhel
 else:
     print 'Unsupported OS!'
     sys.exit(1)
 
 my_apaches = get_apaches()
-for i in my_apaches:
-    print i.pid
+if len(my_apaches) > 0:
+    for i in my_apaches:
+        print i.pid
+    sys.exit(0)
+else:
+    sys.exit(1)

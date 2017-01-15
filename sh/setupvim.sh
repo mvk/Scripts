@@ -22,7 +22,8 @@
 
 MY_VIMRC="${HOME}/.vimrc"
 MY_VIMDIR="${HOME}/.vim"
-GIT_SRV="git@github.com"
+SCHEMA="git"
+GIT_SRV="github.com"
 VIM_PLUGINS_TO_INSTALL=(
     "scrooloose/syntastic"
     "scrooloose/nerdtree"
@@ -35,6 +36,30 @@ VIM_PLUGINS_TO_INSTALL=(
     "sukima/xmledit"
 )
 
+setup_git_url() {
+    local \
+        repository \
+        server \
+        schema \
+        separator \
+        username
+    repository="${1?"cannot continue without git repository name in the format TEAM/REPOSITORY"}"
+    schema="${2:-"${SCHEMA}"}"
+    server="${3:-"${GIT_SRV}"}"
+    username="${4:-"git"}"
+    separator="/"
+    suffix="/"
+    result="${schema}://"
+    if [[ "${schema}" = "git" ]]; then
+        result+="${username}@"
+        separator=":"
+        suffix=".git"
+    fi
+    result+="${server}${separator}${repository}${suffix}"
+    echo "${result}"
+    return 0
+}
+
 install_pathogen() {
     echo "stage: Install pathogen"
     mkdir -p "${MY_VIMDIR}"/{bundle,autoload}
@@ -42,9 +67,18 @@ install_pathogen() {
 }
 
 install_plugins() {
+    local \
+        schema \
+        plugins \
+        plugin
+    schema="${1:-"${SCHEMA}"}"
+    plugins=(${@:2})
+    if [[ "${#plugins[@]}" -lt 1 ]]; then
+        plugins+=(${VIM_PLUGINS_TO_INSTALL[@]})
+    fi
     echo "stage: Install plugins"
     cd "${MY_VIMDIR}/bundle"
-    for plugin in "${VIM_PLUGINS_TO_INSTALL[@]}"; do
+    for plugin in "${plugins[@]}"; do
         plugin_dir="${plugin##*/}"
         if [[ -d "${plugin_dir}" ]]; then
             echo "plugin ${plugin} already installed. Updating it"
@@ -53,7 +87,7 @@ install_plugins() {
             cd ../
             continue
         fi
-        url="${GIT_SRV}:${plugin}.git"
+        url="$( setup_git_url "${plugin}" "${schema}" )"
         echo "getting ${plugin} from ${url}"
         git clone "${url}"
     done
@@ -140,9 +174,12 @@ _EOF
 }
 
 main() {
+    local \
+        schema
+    schema="${1}"
     pushd "${PWD}"
     install_pathogen
-    install_plugins
+    install_plugins "${schema}" "${VIM_PLUGINS_TO_INSTALL[@]}"
     install_vimrc
     popd
 }

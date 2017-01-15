@@ -39,21 +39,27 @@ VIM_PLUGINS_TO_INSTALL=(
 setup_git_url() {
     local \
         repository \
-        server \
         schema \
+        server \
+        username \
         separator \
-        username
+        suffix
     repository="${1?"cannot continue without git repository name in the format TEAM/REPOSITORY"}"
     schema="${2:-"${SCHEMA}"}"
     server="${3:-"${GIT_SRV}"}"
-    username="${4:-"git"}"
+    username="${4}"
     separator="/"
     suffix="/"
     result="${schema}://"
     if [[ "${schema}" = "git" ]]; then
-        result+="${username}@"
+        if [[ -z "${username}" ]]; then
+            username="git"
+        fi
         separator=":"
         suffix=".git"
+    fi
+    if [[ -n "${username}" ]]; then
+        result+="${username}@"
     fi
     result+="${server}${separator}${repository}${suffix}"
     echo "${result}"
@@ -184,6 +190,15 @@ main() {
     popd
 }
 
+# echo "current \$0: '$0'"
+# ./setupvim.sh: current $0: './setupvim.sh'
+# bash ./setupvim.sh: current $0: './setupvim.sh'
+# source ./setupvim.sh current $0: '-bash'
+# bats ./test_setupvim.bats bats: /home/max/src/github.com/mvk/Scripts/sh/setupvim.sh.bash does not exist
+# bats ./test_setupvim.bats current $0: '/usr/lib/bats/bats-exec-test'
 
-main "${@}"
-exit $?
+if ! [[ "${0}" = '-bash' ]] && ! [[ "${0}" =~ .*bats-exec-test$ ]]; then
+    # only run main upon real execution.
+	main "${@}"
+	exit $?
+fi

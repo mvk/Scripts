@@ -108,6 +108,8 @@ install_vimrc() {
     fi
     cat > "${MY_VIMRC}" << _EOF
 " contents of minimal .vimrc
+scriptencoding utf-8
+set encoding=utf-8
 execute pathogen#infect()
 syntax on
 filetype plugin indent on

@@ -1,0 +1,8 @@
+curl
+vim-nox
+tmux
+zsh
+shellcheck
+terminator
+openssh-server
+python3.11-full

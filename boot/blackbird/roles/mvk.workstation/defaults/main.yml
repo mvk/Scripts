@@ -1,0 +1,28 @@
+---
+# defaults file for mvk.workstation
+
+std_packages_list:
+  - curl
+  - vim-nox
+  - tmux
+  - zsh
+  - shellcheck
+  - terminator
+  - openssh-server
+  - python3.11-full
+  - culmus
+  - fonts-cascadia-code
+  - fonts-courier-prime
+  - fonts-dejavu
+  - fonts-dejavu-core
+  - fonts-dejavu-extra
+  - fonts-inconsolata
+  - fonts-league-mono
+  - fonts-liberation
+  - fonts-liberation2
+  - fonts-monofur
+  - fonts-noto-mono
+  - emacs
+  - neovim
+  - sbcl
+  - haskell-platform

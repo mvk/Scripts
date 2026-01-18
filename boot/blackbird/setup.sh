@@ -74,9 +74,19 @@ function setup_ansible() {
   reqs="${1:-"ansible.reqs.txt"}"
   py_version="${2:-"${PYTHON_VERSION}"}"
   "python${py_version}" -m venv .venv
+  # shellcheck disable=SC1091
   source .venv/bin/activate
   pip3 install -r "${reqs}"
 
+}
+
+function run_ansible() {
+  local \
+    playbook \
+    options
+  playbook="${1:-"playbooks/setup.yml"}"
+  options="${2:-"-vv"}"
+  ansible-playbook -i ./inventory "${playbook}" "${options}"
 }
 
 function main() {
@@ -87,7 +97,8 @@ function main() {
   setup_ssh_keys "${KEY_TYPE}" "${HOME}/.ssh/id_${KEY_TYPE}"
   setup_passwordless_root_login "${HOME}/.ssh/id_rsa.pub" "/root/.ssh/authorized_keys"
 
-  setup_ansible 
+  setup_ansible "ansible.reqs.txt"
+  run_ansible
   return $?
 }
 

@@ -1,0 +1,8 @@
+---
+# tasks file for mvk.workstation
+
+- name: install packages
+  ansible.builtin.include: packages.yml
+
+- name: install more applications
+  ansible.builtin.include: applications.yml

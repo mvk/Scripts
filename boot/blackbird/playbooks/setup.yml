@@ -1,0 +1,10 @@
+---
+
+- name: setup workstation
+  hosts: workstations
+  tasks:
+    - name: check task
+      ansible.builtin.shell: |
+        echo "who am I: $(whoami)"
+  roles:
+    - mvk.workstation

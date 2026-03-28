@@ -1,15 +1,19 @@
-#!/usr/bin/env  python
+#!/usr/bin/env  python3
 
-import sys
+# This script is helping to ensure apaache processes are running on a supported system
+# some assumptions: RH or Debian
+
 import psutil
-import commands
+import subprocess
+import sys
 
 def distro_id_in(l):
     cmd = 'lsb_release -i'
-    res = commands.getoutput(cmd)
+    res = subprocess.getoutput(cmd)
     d = res.split('\t')[1]
     if d in l:
         return True
+    # print(f"distro id: {d}")
     return False
 
 def get_procs_by_cmd_and_user(c,u):
@@ -46,19 +50,19 @@ def get_apaches_on_rhel():
    return get_procs_by_cmd_and_user('/usr/sbin/httpd', 'apache')
 
 if is_debian():
-#    print 'setting apache for Debian'
+#    print('setting apache for Debian')
     get_apaches = get_apaches_on_debian
 elif is_redhat():
-#    print 'setting apache for RedHat'
+#    print('setting apache for RedHat')
     get_apaches = get_apaches_on_rhel
 else:
-    print 'Unsupported OS!'
+    print('Unsupported OS!')
     sys.exit(1)
 
 my_apaches = get_apaches()
 if len(my_apaches) > 0:
     for i in my_apaches:
-        print i.pid
+        print(i.pid)
     sys.exit(0)
 else:
     sys.exit(1)

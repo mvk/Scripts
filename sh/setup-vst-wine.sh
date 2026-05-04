@@ -462,6 +462,48 @@ install_winetricks_deps() {
   ok "ALL winetricks components installed"
 }
 
+# ── step 0: selinux contexts ──────────────────────────────────────────────────
+
+setup_selinux_contexts() {
+  if ! command -v semanage &>/dev/null; then
+    log.debug "semanage not found — skipping SELinux context setup"
+    return 0
+  fi
+
+  if ! sestatus 2>/dev/null | grep -q "enabled"; then
+    log.debug "SELinux not enabled — skipping context setup"
+    return 0
+  fi
+
+  log.info "Applying SELinux contexts ..."
+
+  local -a contexts=(
+    "wine_exec_t    /home/[^/]+/\.local/share/wine-runners/[^/]+/bin/wine.*"
+    "textrel_shlib_t /home/[^/]+/\.local/share/wine-runners/[^/]+/lib/wine/.+\.so"
+    "wine_home_t    /home/[^/]+/wine(/.*)?"
+  )
+
+  local type pattern
+  for entry in "${contexts[@]}"; do
+    type="${entry%% *}"
+    pattern="${entry#* }"
+    if sudo semanage fcontext -l 2>/dev/null | grep -qF "${pattern}"; then
+      log.debug "SELinux context already defined: ${pattern}"
+    else
+      sudo semanage fcontext -a -t "${type}" "${pattern}" ||
+        die 1 "Failed to add SELinux context ${type} for ${pattern}"
+      log.info "Added SELinux context ${type}: ${pattern}"
+    fi
+  done
+
+  sudo restorecon -Rv \
+    "${RUNNERS_DIR}" \
+    "$(dirname "${WINEPREFIX}")" \
+    2>/dev/null | while read -r line; do log.debug "${line}"; done
+
+  ok "SELinux contexts applied"
+}
+
 # ── main ──────────────────────────────────────────────────────────────────────
 
 main() {

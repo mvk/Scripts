@@ -1,0 +1,15 @@
+[Unit]
+Description=Universal Emacs Headless Server (Spacemacs)
+Documentation=man:emacs(1)
+
+[Service]
+Type=notify
+# This safe buffer ensures environment variables are populated regardless of desktop
+ExecStartPre=/usr/bin/sleep {{ emacs_start_delay_sec | default(4) }}
+ExecStart=/usr/bin/emacs --fg-daemon
+ExecStop=/usr/bin/emacsclient --eval "(kill-emacs)"
+Restart=on-failure
+
+[Install]
+# default.target activates when your user logs into ANY environment
+WantedBy=default.target

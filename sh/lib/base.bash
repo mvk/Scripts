@@ -3,6 +3,7 @@
 SCRIPT_DEBUG="${SCRIPT_DEBUG:-"0"}"
 DATE_OPTS="${DATE_OPTS:-"--rfc-3339=ns"}"
 EXIT_FAILURE="${EXIT_FAILURE:-1}"
+DO_NOT_EXIT="${DO_NOT_EXIT:-"0"}"
 
 log.msg() {
   local \
@@ -79,6 +80,21 @@ log.fatal() {
   level="${level^^}"
   log.msg "${level}" "${@}"
   return $?
+}
+
+die() {
+  local \
+    exit_code
+  local -a \
+    message
+  exit_code="${1?cannot continue without exit_code}"
+  shift 1
+  message="${*}"
+  log.fatal "${message}"
+  if [[ "${DO_NOT_EXIT}" -gt 0 ]]; then
+    return "${exit_code}"
+  fi
+  exit "${exit_code}"
 }
 
 cmd.run() {

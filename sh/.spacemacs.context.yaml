@@ -1,0 +1,65 @@
+---
+default_font_family: Source Code Pro
+default_font_size: 16.0
+emacs_enable_server: t
+dotspacemacs_configuration_layers:
+  - syntax-checking
+  - lsp
+  - (common-lisp :variables common-lisp-backend 'sly)
+  - (rust :variables rust-backend 'lsp)
+  - toml
+  - |-
+    ;; ----------------------------------------------------------------
+    ;; Example of useful layers you may want to use right away.
+    ;; Uncomment some layer names and press `SPC f e R' (Vim style) or
+    ;; `M-m f e R' (Emacs style) to install them.
+    ;; ----------------------------------------------------------------
+    ;; auto-completion
+    ;; better-defaults
+  - emacs-lisp
+  - |-
+    ;; git
+  - helm
+  - |-
+    ;; markdown
+  - multiple-cursors
+  - |-
+    ;; org
+    ;; (shell :variables
+    ;;        shell-default-height 30
+    ;;        shell-default-position 'bottom)
+    ;; spell-checking
+    ;; version-control
+  - treemacs
+dotspacemacs_additional_packages:
+  - rewrap
+dotspacemacs_user_config:
+  - (global-rewrap-mode 1)
+  - |-
+    (defun my-scheduled-package-refresh ()
+      "Runs package refresh only if it has been more than 7 days since the last run."
+      (interactive)
+      (let* ((cache-file (expand-file-name "elpa-refresh-timestamp" user-emacs-directory))
+             (last-run (if (file-exists-p cache-file)
+                           (with-temp-buffer
+                             (insert-file-contents cache-file)
+                             (car (read-from-string (buffer-string))))
+                         nil))
+             ;; Calculate days passed (86400 seconds in a day)
+             (days-passed (if last-run
+                              (/ (float-time (time-subtract (current-time) last-run)) 86400)
+                            999))) ; Force run if no file exists
+
+        (when (>= days-passed 7) ; Change 7 to 14 for a bi-weekly schedule
+          (message "Scheduled weekly package refresh starting...")
+          ;; Use our previous function to bypass the startup lock safely
+          (my-force-package-refresh)
+          ;; Save the current timestamp to the file
+          (with-temp-file cache-file
+            (insert (prin1-to-string (current-time))))
+          (message "Scheduled package refresh complete."))))
+  - |-
+
+    ;; Run the schedule automatically in the background after Emacs is idle for 5 minutes
+    (run-with-idle-timer 300 t #'my-scheduled-package-refresh)
+

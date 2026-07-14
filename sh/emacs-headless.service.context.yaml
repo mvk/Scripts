@@ -1,0 +1,5 @@
+---
+emacs_start_delay_sec: 3
+emacs_binary: /usr/bin/emacs
+emacsclient_binary: /usr/bin/emacsclient
+emacs_flavor: SPACEMACS

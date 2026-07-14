@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
-SCRIPT_NAME=$(cd -- "$(basename -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")" &>/dev/null
 SCRIPT_DEBUG="${SCRIPT_DEBUG:-0}"
 SCRIPT_FORCE="${SCRIPT_FORCE:-0}"
 SCRIPT_ID="${SCRIPT_ID:-"${SCRIPT_NAME%%.*}-$(date +%s || true)"}"
@@ -19,6 +19,10 @@ fi
 SPACEMACS_REPO="${SPACEMACS_REPO:-"https://github.com/syl20bnr/spacemacs"}"
 EMACS_CONF_DIR="${EMACS_CONF_DIR:-"${HOME}/.emacs.d"}"
 QUICK_LISP_URL="${QUICK_LISP_URL:-"https://beta.quicklisp.org/quicklisp.lisp"}"
+EMACS_SVC_FILE="${EMACS_SVC_FILE:-".config/systemd/user/emacs-headless.service"}"
+EMACS_SVC_TPL="${EMACS_SVC_TPL:-"${EMACS_SVC_FILE}.j2"}"
+EMACS_SVC_CTX="${EMACS_SVC_CTX:-"${EMACS_SVC_FILE##*/}.context.yaml"}"
+SYSTEMD_INSTALL_ROOT="${SYSTEMD_INSTALL_ROOT:-"${HOME}"}"
 
 declare -A DISTRO_ID_PKG_MGR_MAP
 
@@ -31,9 +35,10 @@ APT_FLAGS=(
   -y
 )
 APT_PACKAGES=(
-  emacs
+  emacs-gtk
   sbcl
   gcc
+  g++
   make
   rlwrap
 )
@@ -53,10 +58,11 @@ EMACS_CFG_FILE="${EMACS_CFG_FILE:-"${HOME}/.spacemacs"}"
 EMACS_CFG_TPL="${EMACS_CFG_TPL:-"${PWD}/$(basename "${EMACS_CFG_FILE}").j2"}"
 EMACS_CFG_CTX="${EMACS_CFG_CTX:-"${PWD}/$(basename "${EMACS_CFG_FILE}").context.yaml"}"
 
-SETUP_PACKAGES_SKIP="${SETUP_PACKAGES_SKIP:-"1"}"
-SETUP_SPACEMACS_SKIP="${SETUP_SPACEMACS_SKIP:-"1"}"
-SETUP_QUICKLISP_SKIP="${SETUP_QUICKLISP_SKIP:-"1"}"
+SETUP_PACKAGES_SKIP="${SETUP_PACKAGES_SKIP:-"0"}"
+SETUP_SPACEMACS_SKIP="${SETUP_SPACEMACS_SKIP:-"0"}"
+SETUP_QUICKLISP_SKIP="${SETUP_QUICKLISP_SKIP:-"0"}"
 UPDATE_DOT_SPACEMACS_SKIP="${UPDATE_DOT_SPACEMACS_SKIP:-"0"}"
+SETUP_EMACS_SERVICE_SKIP="${SETUP_EMACS_SERVICE_SKIP:-"0"}"
 
 log.info "inside the script ${SCRIPT_NAME}"
 
@@ -71,9 +77,21 @@ run.detect_distro_id() {
   return 0
 }
 
-# run.ensure_apps() {
-#
-# }
+run.ensure_apps() {
+  local \
+    app
+  local -a \
+    apps
+  apps=("${@}")
+  if [[ "${#apps[@]}" -eq 0 ]]; then
+    log.warn "${FUNCNAME[0]} got 0 apps to ensure"
+    return 0
+  fi
+  for app in "${apps[@]}"; do
+    command -v "${app}" >/dev/null || return 1
+  done
+
+}
 
 runner.dnf() {
   local op
@@ -269,41 +287,76 @@ setup_quicklisp() {
   return "${rc}"
 }
 
+render_template() {
+  local \
+    output \
+    base \
+    template \
+    context \
+    context_format
+  local -a \
+    cmd
+  output="${1?cannot continue without output}"
+  base="$(basename "${output}" || echo "${output##*/}")"
+  template="${2:-"${base}.j2"}"
+  context="${3:-"${base}.context.yaml"}"
+  context_format="${context##*.}"
+  [[ -f "${template}" ]] || die 1 "Template is missing: ${template}"
+  [[ -f "${context}" ]] || die 1 "Template context is missing: ${context}"
+  log.debug "Launching the template engine"
+  # render the template tpl_file using context ctx_file as output trg_file:
+  cmd=(minijinja-cli)
+  cmd+=(-f "${context_format}")
+  cmd+=(-a none)
+  cmd+=(-o "${output}")
+  cmd+=("${template}" "${context}")
+  cmd.run 0 "${cmd[@]}"
+  rc=$?
+  log.info "Generated output: ${output}, from template: ${template} and context: ${context} with rc=${rc}"
+  return "${rc}"
+}
+
 update_dot_spacemacs() {
   local \
     trg_file \
     trg_base \
     tpl_file \
     ctx_file \
-    ctx_format
-  local -a \
-    cmd
+    rc
   skip_disabled "${FUNCNAME[0]}" || return 0
   trg_file="${1?cannot continue without trg_file}" # is generated
-  shift 1
   trg_base="$(basename "${trg_file}")"
-  tpl_file="${1:-"${trg_base}.j2"}" # must exist
-  shift 1
-  ctx_file="${1:-"${trg_base}.yaml"}" # is generated
-  shift 1
-  ctx_format="${ctx_file##*.}"
+  tpl_file="${2:-"${trg_base}.j2"}"           # must exist
+  ctx_file="${3:-"${trg_base}.context.yaml"}" # is generated
   # ensure template exists
-  if ! [[ -f "${tpl_file}" ]]; then
-    die 1 "Template ${tpl_file} is missing"
-  fi
-  if [[ -f "${ctx_file}" ]]; then
-    mv "${ctx_file}" "${ctx_file}.${SCRIPT_ID}"
-  fi
-  log.debug "launching the template engine"
-  # render the template tpl_file using context ctx_file as output trg_file:
-  cmd=(minijinja-cli)
-  cmd+=(-f "${ctx_format}")
-  cmd+=(-a none)
-  cmd+=(-o "${trg_file}")
-  cmd+=("${tpl_file}" "${ctx_file}")
-  cmd.run 0 "${cmd[@]}"
+  render_template "${trg_file}" "${tpl_file}" "${ctx_file}"
   rc=$?
-  log.info "Generated ${trg_file} from template: ${tpl_file} and context: ${ctx_file} with rc=${rc}"
+  return "${rc}"
+}
+
+setup_emacs_service() {
+  local \
+    unit_file \
+    tpl_file \
+    ctx_file \
+    install_root \
+    rc
+  unit_file="${1:-".config/systemd/user/emacs-headless.service"}"
+  tpl_file="${2:-"${unit_file}.j2"}"
+  ctx_file="${3:-"${unit_file##*/}.context.yaml"}"
+  install_root="${4:-"${SYSTEMD_INSTALL_ROOT}"}"
+  skip_disabled "${FUNCNAME[0]}" || return 0
+  render_template "${install_root}/${unit_file}" "${tpl_file}" "${ctx_file}"
+  ## enable the service and start it too
+  cmd.run 0 systemctl --user daemon-reload
+  rc=$?
+  log.info "Reloaded systemd for ${unit_file##*/} with rc=${rc}"
+  cmd.run 0 systemctl --user enable "${unit_file##*/}"
+  rc=$?
+  log.info "Enabled systemd unit for ${unit_file##*/} with rc=${rc}"
+  cmd.run 0 systemctl --user start "${unit_file##*/}"
+  log.info "Started systemd unit for ${unit_file##*/} with rc=${rc}"
+  rc=$?
   return "${rc}"
 }
 
@@ -320,9 +373,24 @@ main() {
   distro_id="$(run.detect_distro_id)"
   # do some logic here
   setup_packages "${distro_id}"
-  setup_spacemacs "${SPACEMACS_REPO}" "${EMACS_CONF_DIR}"
+  rc=$?
+  setup_spacemacs \
+    "${SPACEMACS_REPO}" \
+    "${EMACS_CONF_DIR}"
+  rc=$?
   setup_quicklisp "${QUICK_LISP_URL}"
-  update_dot_spacemacs "${EMACS_CFG_FILE}" "${EMACS_CFG_TPL}" "${EMACS_CFG_CTX}"
+  rc=$?
+  update_dot_spacemacs \
+    "${EMACS_CFG_FILE}" \
+    "${EMACS_CFG_TPL}" \
+    "${EMACS_CFG_CTX}"
+  rc=$?
+  setup_emacs_service \
+    "${EMACS_SVC_FILE}" \
+    "${EMACS_SVC_TPL}" \
+    "${EMACS_SVC_CTX}" \
+    "${SYSTEMD_INSTALL_ROOT}"
+  rc=$?
   cmd.run 0 popd &>/dev/null || {
     log.fatal "Failed to get back from '${PWD}'"
     exit 1

@@ -30,12 +30,20 @@ MU4E_ENABLED="${MU4E_ENABLED:-"0"}"
 EMACS_CFG_FILE="${EMACS_CFG_FILE:-"${HOME}/.spacemacs"}"
 EMACS_CFG_TPL="${EMACS_CFG_TPL:-"${PWD}/$(basename "${EMACS_CFG_FILE}").j2"}"
 EMACS_CFG_CTX="${EMACS_CFG_CTX:-"${PWD}/$(basename "${EMACS_CFG_FILE}").context.yaml"}"
+SBCL_CFG_FILE="${SBCL_CFG_FILE:-"${HOME}/.sbclrc"}"
+SBCL_CFG_TPL="${SBCL_CFG_TPL:-"${PWD}/$(basename "${SBCL_CFG_FILE}").j2"}"
+SBCL_CFG_CTX="${SBCL_CFG_CTX:-"${PWD}/$(basename "${SBCL_CFG_FILE}").context.yaml"}"
+EMACS_DESKTOP_FILE="${EMACS_DESKTOP_FILE:-"${HOME}/.local/share/applications/emacsclient.desktop"}"
+EMACS_DESKTOP_TPL_FILE="${EMACS_DESKTOP_TPL_FILE:-"${PWD}/${EMACS_DESKTOP_FILE##*/}.j2"}"
+EMACS_DESKTOP_CTX_FILE="${EMACS_DESKTOP_CTX_FILE:-"${EMACS_DESKTOP_TPL_FILE%/*}.context.yaml"}"
 
 SETUP_PACKAGES_SKIP="${SETUP_PACKAGES_SKIP:-"0"}"
 SETUP_EMACS_CFG_DIR_SKIP="${SETUP_EMACS_CFG_DIR_SKIP:-"0"}"
 SETUP_QUICKLISP_SKIP="${SETUP_QUICKLISP_SKIP:-"0"}"
 SETUP_EMACS_CFG_FILE_SKIP="${SETUP_EMACS_CFG_FILE_SKIP:-"0"}"
-SETUP_EMACS_SERVICE_SKIP="${SETUP_EMACS_SERVICE_SKIP:-"0"}"
+SETUP_SBCLRC_FILE_SKIP="${SETUP_SBCLRC_FILE_SKIP:-"0"}"
+SETUP_EMACS_SVC_SKIP="${SETUP_EMACS_SVC_SKIP:-"0"}"
+SETUP_EMACS_DESKTOP_HOOKS_SKIP="${SETUP_EMACS_DESKTOP_HOOKS_SKIP:-"0"}"
 declare -A DISTRO_ID_PKG_MGR_MAP
 
 DISTRO_ID_PKG_MGR_MAP['Fedora']="dnf"
@@ -372,7 +380,26 @@ setup_emacs_cfg_file() {
   return "${rc}"
 }
 
-setup_emacs_service() {
+setup_sbclrc_file() {
+  local \
+    cfg_file \
+    trg_base \
+    tpl_file \
+    ctx_file \
+    rc
+  cfg_file="${1?cannot continue without cfg_file}" # is generated
+  skip_disabled "${FUNCNAME[0]}" || return 0
+  skip_existing "${FUNCNAME[0]}" "${cfg_file}" || return 0
+  trg_base="$(basename "${cfg_file}")"
+  tpl_file="${2:-"${trg_base}.j2"}"           # must exist
+  ctx_file="${3:-"${trg_base}.context.yaml"}" # is generated
+  # ensure template exists
+  render_template "${cfg_file}" "${tpl_file}" "${ctx_file}"
+  rc=$?
+  return "${rc}"
+}
+
+setup_emacs_svc() {
   local \
     unit_file \
     tpl_file \
@@ -438,47 +465,47 @@ ensure_configuration() {
   return 0
 }
 
-setup_desktop_hooks() {
+setup_emacs_desktop_hooks() {
   local \
-    data_home \
-    executable \
+    target_file \
+    tpl_file \
+    ctx_file \
     flavor \
     shortcutsrc \
-    expected_flavor \
-    install_dir \
-    install_target
+    executable \
+    install_dir
   local -a \
     cmd
-  data_home="${1:-"${XDG_DATA_HOME}"}"
-  executable="${2:-"emacsclient"}"
-  flavor="${3:-"${EMACS_FLAVOR}"}"
-  shortcutsrc="${4:-"${HOME}/.config/kglobalshortcutsrc"}"
+  target_file="${1:-"${EMACS_DESKTOP_FILE}"}"
+  tpl_file="${2:-"${EMACS_DESKTOP_TPL_FILE}"}"
+  ctx_file="${3:-"${EMACS_DESKTOP_CTX_FILE}"}"
+  flavor="${4:-"${EMACS_FLAVOR}"}"
+  shortcutsrc="${5:-"${HOME}/.config/kglobalshortcutsrc"}"
+  executable="${6:-""}"
   skip_disabled "${FUNCNAME[0]}" || return 0
-  if [[ -z "${data_home}" ]]; then
-    data_home="${HOME}/.local/share"
+  skip_existing "${FUNCNAME[0]}" "${target_file}" || return 0
+  if [[ -z "${executable}" ]]; then
+    executable="${target_file##*/}"
+    executable="${executable%.*}"
+    executable="/usr/bin/${executable}"
   fi
-  install_dir="${data_home}/applications"
-  install_target="${install_dir}/${executable##*/}.desktop"
+  cat >"${ctx_file}" <<_EOF
+---
+flavor: "${flavor}"
+executable: "${executable}"
+_EOF
+  install_dir="${target_file%/*}"
+  log.debug "install_dir=${install_dir}"
   mkdir -p "${install_dir}"
-  skip_existing "${FUNCNAME[0]}" "${install_target}" || return 0
-  cat <<EOF >"${install_target}"
-[Desktop Entry]
-Type=Application
-Name=Emacs Client [flavor: ${flavor}]
-Exec=${executable} -c
-NoDisplay=true
-StartupNotify=false
-X-KDE-GlobalAccel-CommandShortcut=true
-EOF
+  render_template "${target_file}" "${tpl_file}" "${ctx_file}"
 
   cmd=(
     kwriteconfig6 --file "${shortcutsrc}"
-    --group "${install_target##*/}"
+    --group "${target_file##*/}"
     --key "_launch" "Ctrl+Meta+E,none,Spacemacs Client CLI Bound"
   )
   cmd.run 0 "${cmd[@]}"
-
-  qdbus org.kde.KWin /KWin org.kde.KWin.reconfigure
+  qdbus-qt6 org.kde.KWin /KWin org.kde.KWin.reconfigure
 
 }
 
@@ -500,20 +527,32 @@ main() {
     "${EMACS_CFG_REPO}" \
     "${EMACS_CFG_DIR}"
   rc=$?
-  setup_quicklisp "${QL_URL}" "${QL_INIT_FILE}"
+  setup_quicklisp \
+    "${QL_URL}" \
+    "${QL_INIT_FILE}"
+  rc=$?
+  setup_sbclrc_file \
+    "${SBCL_CFG_FILE}" \
+    "${SBCL_CFG_TPL}" \
+    "${SBCL_CFG_CTX}"
   rc=$?
   setup_emacs_cfg_file \
     "${EMACS_CFG_FILE}" \
     "${EMACS_CFG_TPL}" \
     "${EMACS_CFG_CTX}"
   rc=$?
-  setup_emacs_service \
+  setup_emacs_svc \
     "${EMACS_SVC_FILE}" \
     "${EMACS_SVC_TPL}" \
     "${EMACS_SVC_CTX}" \
     "${SYSTEMD_INSTALL_ROOT}"
   rc=$?
-  setup_desktop_hooks
+  setup_emacs_desktop_hooks \
+    "${EMACS_DESKTOP_FILE}" \
+    "${EMACS_DESKTOP_TPL_FILE}" \
+    "${EMACS_DESKTOP_CTX_FILE}" \
+    "${EMACS_FLAVOR}" \
+    "${HOME}/.config/kglobalshortcutsrc"
   rc=$?
   cmd.run 0 popd &>/dev/null || {
     log.fatal "Failed to get back from '${PWD}'"

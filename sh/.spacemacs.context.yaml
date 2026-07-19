@@ -7,8 +7,8 @@ dotspacemacs_configuration_layers:
   - lsp
   - |-
     (common-lisp :variables
-                common-lisp-backend 'sly
-                inferior-lisp-program "sbcl")
+                 common-lisp-backend 'sly
+                 inferior-lisp-program "sbcl")
   - (rust :variables rust-backend 'lsp)
   - toml
   - |-

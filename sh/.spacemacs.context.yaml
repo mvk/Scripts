@@ -2,6 +2,7 @@
 default_font_family: Source Code Pro
 default_font_size: 16.0
 emacs_enable_server: t
+emacs_editing_style: emacs
 dotspacemacs_configuration_layers:
   - syntax-checking
   - lsp

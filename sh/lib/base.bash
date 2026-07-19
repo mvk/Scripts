@@ -115,5 +115,6 @@ cmd.run() {
       exit "${rc}"
     fi
   fi
+  log.debug "cmd succeeded with rc=${rc}"
   return "${rc}"
 }

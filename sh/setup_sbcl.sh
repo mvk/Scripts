@@ -16,14 +16,26 @@ if [[ -d "${SCRIPT_DIR}/lib" ]]; then
   done
 fi
 
-SPACEMACS_REPO="${SPACEMACS_REPO:-"https://github.com/syl20bnr/spacemacs"}"
-EMACS_CONF_DIR="${EMACS_CONF_DIR:-"${HOME}/.emacs.d"}"
-QUICK_LISP_URL="${QUICK_LISP_URL:-"https://beta.quicklisp.org/quicklisp.lisp"}"
+EMACS_FLAVOR="${EMACS_FLAVOR:-"spacemacs"}"
+EMACS_CFG_REPO="${EMACS_CFG_REPO:-"https://github.com/syl20bnr/spacemacs"}"
+QL_URL="${QL_URL:-"https://beta.quicklisp.org/quicklisp.lisp"}"
+QL_INIT_FILE="${QL_INIT_FILE:-"${PWD}/quicklisp-init.lisp"}"
 EMACS_SVC_FILE="${EMACS_SVC_FILE:-".config/systemd/user/emacs-headless.service"}"
-EMACS_SVC_TPL="${EMACS_SVC_TPL:-"${EMACS_SVC_FILE}.j2"}"
-EMACS_SVC_CTX="${EMACS_SVC_CTX:-"${EMACS_SVC_FILE##*/}.context.yaml"}"
+EMACS_SVC_TPL="${EMACS_SVC_TPL:-"${PWD}/${EMACS_SVC_FILE}.j2"}"
+EMACS_SVC_CTX="${EMACS_SVC_CTX:-"${PWD}/${EMACS_SVC_FILE##*/}.context.yaml"}"
+EMACS_CFG_DIR="${EMACS_CFG_DIR:-"${HOME}/.emacs.d"}"
 SYSTEMD_INSTALL_ROOT="${SYSTEMD_INSTALL_ROOT:-"${HOME}"}"
+MU4E_ENABLED="${MU4E_ENABLED:-"0"}"
 
+EMACS_CFG_FILE="${EMACS_CFG_FILE:-"${HOME}/.spacemacs"}"
+EMACS_CFG_TPL="${EMACS_CFG_TPL:-"${PWD}/$(basename "${EMACS_CFG_FILE}").j2"}"
+EMACS_CFG_CTX="${EMACS_CFG_CTX:-"${PWD}/$(basename "${EMACS_CFG_FILE}").context.yaml"}"
+
+SETUP_PACKAGES_SKIP="${SETUP_PACKAGES_SKIP:-"0"}"
+SETUP_EMACS_CFG_DIR_SKIP="${SETUP_EMACS_CFG_DIR_SKIP:-"0"}"
+SETUP_QUICKLISP_SKIP="${SETUP_QUICKLISP_SKIP:-"0"}"
+SETUP_EMACS_CFG_FILE_SKIP="${SETUP_EMACS_CFG_FILE_SKIP:-"0"}"
+SETUP_EMACS_SERVICE_SKIP="${SETUP_EMACS_SERVICE_SKIP:-"0"}"
 declare -A DISTRO_ID_PKG_MGR_MAP
 
 DISTRO_ID_PKG_MGR_MAP['Fedora']="dnf"
@@ -53,16 +65,20 @@ DNF_PACKAGES=(
   make
   rlwrap
 )
-
-EMACS_CFG_FILE="${EMACS_CFG_FILE:-"${HOME}/.spacemacs"}"
-EMACS_CFG_TPL="${EMACS_CFG_TPL:-"${PWD}/$(basename "${EMACS_CFG_FILE}").j2"}"
-EMACS_CFG_CTX="${EMACS_CFG_CTX:-"${PWD}/$(basename "${EMACS_CFG_FILE}").context.yaml"}"
-
-SETUP_PACKAGES_SKIP="${SETUP_PACKAGES_SKIP:-"0"}"
-SETUP_SPACEMACS_SKIP="${SETUP_SPACEMACS_SKIP:-"0"}"
-SETUP_QUICKLISP_SKIP="${SETUP_QUICKLISP_SKIP:-"0"}"
-UPDATE_DOT_SPACEMACS_SKIP="${UPDATE_DOT_SPACEMACS_SKIP:-"0"}"
-SETUP_EMACS_SERVICE_SKIP="${SETUP_EMACS_SERVICE_SKIP:-"0"}"
+if [[ "${MU4E_ENABLED}" -gt 0 ]]; then
+  APT_PACKAGES+=(
+    git
+    meson
+    libgmime-3.0-dev
+    libxapian-dev
+  )
+  DNF_PACKAGES+=(
+    git
+    meson
+    gmime30-devel
+    xapian-core-devel
+  )
+fi
 
 log.info "inside the script ${SCRIPT_NAME}"
 
@@ -104,7 +120,11 @@ runner.dnf() {
   if [[ "${#packages[@]}" -eq 0 ]]; then
     log.warn "no packages were passed for operation: '${op}'"
   fi
-  run_cmd=(dnf "${op}")
+  run_cmd=()
+  if [[ "$(id -u)" -ne "0" ]]; then
+    run_cmd+=(sudo)
+  fi
+  run_cmd+=(dnf "${op}")
   if [[ "${#DNF_FLAGS[@]}" -gt 0 ]]; then
     run_cmd+=("${DNF_FLAGS[@]}")
   fi
@@ -164,6 +184,22 @@ run.pkg() {
   return 0
 }
 
+del_paths() {
+  local curr idx len msg rc
+  local -a paths
+  paths=("${@}")
+  len="${#paths[@]}"
+  [[ "${len}" -eq 0 ]] && return 0
+  for ((idx = 0; idx < len; idx++)); do
+    curr="${paths[${idx}]}"
+    msg="Deleted $(test -d "${curr}" && echo "folder" || echo "file") ${curr} with"
+    cmd.run 0 rm -fr "${curr}" && rc=$? || rc=$?
+    log.debug "${msg} rc=${rc} [$((idx + 1)) of ${len}]"
+  done
+  log.debug "Deleted ${len} files/folders"
+  return 0
+}
+
 skip_disabled() {
   local \
     func_name \
@@ -173,6 +209,8 @@ skip_disabled() {
   func_name="${1:-"${FUNCNAME[1]}"}"
   skip_setup_ref="${func_name^^}_SKIP"
   skip_setup="${skip_setup_ref}"
+  # handle unset variable:
+  [[ -z "${skip_setup}" ]] && return 0
   if [[ "${skip_setup}" -gt 0 ]]; then
     log.info "Skip running ${func_name}(). [REASON: ${func_name^^}_SKIP=${skip_setup}]"
     return 1
@@ -214,16 +252,16 @@ setup_packages() {
   return "${rc}"
 }
 
-setup_spacemacs() {
+setup_emacs_cfg_dir() {
   local \
     repo_url \
     target_dir \
     old_var \
     rc
-  repo_url="${1:-"${SPACEMACS_REPO}"}"
-  target_dir="${2:-"${EMACS_CONF_DIR}"}"
+  repo_url="${1:-"${EMACS_CFG_REPO}"}"
+  target_dir="${2:-"${EMACS_CFG_DIR}"}"
   skip_disabled "${FUNCNAME[0]}" || return 0
-  skip_existing "${FUNCNAME[0]}" "${target_dir}"
+  skip_existing "${FUNCNAME[0]}" "${target_dir}" || return 0
   log.info "Start setup spacemacs"
   if [[ -d "${target_dir}" ]]; then
     log.warn "target directory already present: ${target_dir}"
@@ -253,37 +291,36 @@ setup_quicklisp() {
   local \
     ql_url \
     ql_lisp \
-    ql_setup \
-    fname \
+    ql_init \
+    title \
     sbclrc \
     rc
   local -a \
-    files \
     cmd
   sbclrc="${HOME}/.sbclrc"
-  skip_disabled "${FUNCNAME[0]}" || return 0
-  skip_existing "${FUNCNAME[0]}" "${sbclrc}"
-  ql_url="${1:-"${QUICK_LISP_URL}"}"
+  ql_url="${1:-"${QL_URL}"}"
   ql_lisp="${ql_url##*/}"
-  ql_setup="${2:-"${ql_lisp%%.*}-setup.lisp"}"
-  log.info "Start  => Setup of ${ql_lisp%%.*}"
-  curl -f -O "${ql_url}" && rc=$? || rc=$?
+  title="${ql_lisp%%.*}"
+  ql_init="${2:-"${title}-init.lisp"}"
+  skip_disabled "${FUNCNAME[0]}" || return 0
+  skip_existing "${FUNCNAME[0]}" "${sbclrc}" "${HOME}/${title}" || return 0
+  log.info "Start  => Setup of ${title}"
+  cmd.run 0 curl -fO "${ql_url}" && rc=$? || rc=$?
   log.debug "Downloaded: ${ql_lisp} from: ${ql_url} with rc=${rc}"
-  files=(
-    "${ql_lisp}"
-    "${ql_setup}"
+  cmd=(
+    sbcl
+    --load "${ql_lisp}"
   )
-  cmd=(sbcl)
-  for fname in "${files[@]}"; do
-    cmd+=(--load "${fname}")
-  done
+  if [[ ! -f "${ql_init}" ]]; then
+    log.fatal "init file ${ql_init} is missing."
+  fi
+  cmd+=(--load "${ql_init}")
   cmd+=(--quit)
   cmd.run 0 "${cmd[@]}"
   rc=$?
-  log.debug "sbcl ${ql_setup%%.*} initialized + setup completed with rc=$?"
-  cmd.run 0 rm "${files[@]}" && rc=$?
-  log.debug "Cleaned up file: ${files[*]}"
-  log.info "Finish <= Setup of ${ql_lisp%%.*} with ${rc}"
+  log.debug "sbcl loaded: ${ql_lisp} & ${ql_init} with rc=$?"
+  del_paths "${ql_lisp}"
+  log.info "Finish <= Setup of ${title} with rc=${rc}"
   return "${rc}"
 }
 
@@ -316,20 +353,21 @@ render_template() {
   return "${rc}"
 }
 
-update_dot_spacemacs() {
+setup_emacs_cfg_file() {
   local \
-    trg_file \
+    cfg_file \
     trg_base \
     tpl_file \
     ctx_file \
     rc
+  cfg_file="${1?cannot continue without cfg_file}" # is generated
   skip_disabled "${FUNCNAME[0]}" || return 0
-  trg_file="${1?cannot continue without trg_file}" # is generated
-  trg_base="$(basename "${trg_file}")"
+  skip_existing "${FUNCNAME[0]}" "${cfg_file}" || return 0
+  trg_base="$(basename "${cfg_file}")"
   tpl_file="${2:-"${trg_base}.j2"}"           # must exist
   ctx_file="${3:-"${trg_base}.context.yaml"}" # is generated
   # ensure template exists
-  render_template "${trg_file}" "${tpl_file}" "${ctx_file}"
+  render_template "${cfg_file}" "${tpl_file}" "${ctx_file}"
   rc=$?
   return "${rc}"
 }
@@ -346,6 +384,7 @@ setup_emacs_service() {
   ctx_file="${3:-"${unit_file##*/}.context.yaml"}"
   install_root="${4:-"${SYSTEMD_INSTALL_ROOT}"}"
   skip_disabled "${FUNCNAME[0]}" || return 0
+  skip_existing "${FUNCNAME[0]}" "${install_root}/${unit_file}" || return 0
   render_template "${install_root}/${unit_file}" "${tpl_file}" "${ctx_file}"
   ## enable the service and start it too
   cmd.run 0 systemctl --user daemon-reload
@@ -358,6 +397,89 @@ setup_emacs_service() {
   log.info "Started systemd unit for ${unit_file##*/} with rc=${rc}"
   rc=$?
   return "${rc}"
+}
+
+ensure_emacs_flavor() {
+  local \
+    filepath \
+    flavor \
+    expected_flavor
+  filepath="${1?cannot continue without filepath}"
+  flavor="${2?cannot continue withoug flavor}"
+  expected_flavor="${2?cannot continue withoug expected_flavor}"
+  if [[ "${flavor}" != "${expected_flavor}" ]]; then
+    die 1 "Configuration conflict: config file ${filepath} does not match flavor: ${flavor}. Expected: ${expected_flavor}"
+  fi
+  return 0
+}
+
+ensure_configuration() {
+  local \
+    flavor \
+    config_file
+  config_file="${1:-"${EMACS_CFG_FILE}"}"
+  flavor="${2:-"${EMACS_FLAVOR}"}"
+
+  case "${config_file##/*}" in
+  ".spacemacs")
+    ensure_emacs_flavor "${config_file}" "${flavor}" "spacemacs"
+    ;;
+  "*.el")
+    # TODO: add support for doom/vanilla later
+    if [[ -v DOOMDIR ]]; then
+      die 1 "this script does not support EMACS_FLAVOR=doom"
+    fi
+    die 1 "this script does not support EMACS_FLAVOR=vanilla"
+    ;;
+  *)
+    die 1 "this script does not support this configuration file: ${config_file}"
+    ;;
+  esac
+  return 0
+}
+
+setup_desktop_hooks() {
+  local \
+    data_home \
+    executable \
+    flavor \
+    shortcutsrc \
+    expected_flavor \
+    install_dir \
+    install_target
+  local -a \
+    cmd
+  data_home="${1:-"${XDG_DATA_HOME}"}"
+  executable="${2:-"emacsclient"}"
+  flavor="${3:-"${EMACS_FLAVOR}"}"
+  shortcutsrc="${4:-"${HOME}/.config/kglobalshortcutsrc"}"
+  skip_disabled "${FUNCNAME[0]}" || return 0
+  if [[ -z "${data_home}" ]]; then
+    data_home="${HOME}/.local/share"
+  fi
+  install_dir="${data_home}/applications"
+  install_target="${install_dir}/${executable##*/}.desktop"
+  mkdir -p "${install_dir}"
+  skip_existing "${FUNCNAME[0]}" "${install_target}" || return 0
+  cat <<EOF >"${install_target}"
+[Desktop Entry]
+Type=Application
+Name=Emacs Client [flavor: ${flavor}]
+Exec=${executable} -c
+NoDisplay=true
+StartupNotify=false
+X-KDE-GlobalAccel-CommandShortcut=true
+EOF
+
+  cmd=(
+    kwriteconfig6 --file "${shortcutsrc}"
+    --group "${install_target##*/}"
+    --key "_launch" "Ctrl+Meta+E,none,Spacemacs Client CLI Bound"
+  )
+  cmd.run 0 "${cmd[@]}"
+
+  qdbus org.kde.KWin /KWin org.kde.KWin.reconfigure
+
 }
 
 main() {
@@ -374,13 +496,13 @@ main() {
   # do some logic here
   setup_packages "${distro_id}"
   rc=$?
-  setup_spacemacs \
-    "${SPACEMACS_REPO}" \
-    "${EMACS_CONF_DIR}"
+  setup_emacs_cfg_dir \
+    "${EMACS_CFG_REPO}" \
+    "${EMACS_CFG_DIR}"
   rc=$?
-  setup_quicklisp "${QUICK_LISP_URL}"
+  setup_quicklisp "${QL_URL}" "${QL_INIT_FILE}"
   rc=$?
-  update_dot_spacemacs \
+  setup_emacs_cfg_file \
     "${EMACS_CFG_FILE}" \
     "${EMACS_CFG_TPL}" \
     "${EMACS_CFG_CTX}"
@@ -390,6 +512,8 @@ main() {
     "${EMACS_SVC_TPL}" \
     "${EMACS_SVC_CTX}" \
     "${SYSTEMD_INSTALL_ROOT}"
+  rc=$?
+  setup_desktop_hooks
   rc=$?
   cmd.run 0 popd &>/dev/null || {
     log.fatal "Failed to get back from '${PWD}'"

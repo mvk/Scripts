@@ -2,10 +2,14 @@
 default_font_family: Source Code Pro
 default_font_size: 16.0
 emacs_enable_server: t
+emacs_editing_style: emacs
 dotspacemacs_configuration_layers:
   - syntax-checking
   - lsp
-  - (common-lisp :variables common-lisp-backend 'sly)
+  - |-
+    (common-lisp :variables
+                 common-lisp-backend 'sly
+                 inferior-lisp-program "sbcl")
   - (rust :variables rust-backend 'lsp)
   - toml
   - |-
@@ -24,17 +28,29 @@ dotspacemacs_configuration_layers:
     ;; markdown
   - multiple-cursors
   - |-
-    ;; org
-    ;; (shell :variables
-    ;;        shell-default-height 30
-    ;;        shell-default-position 'bottom)
+    org
+  - |-
+    (shell :variables
+           shell-default-height 30
+           shell-default-position 'bottom)
+  - |-
     ;; spell-checking
     ;; version-control
   - treemacs
 dotspacemacs_additional_packages:
-  - rewrap
+  - sly
+#  - rewrap
 dotspacemacs_user_config:
-  - (global-rewrap-mode 1)
+  - |- 
+    (use-package sly
+      :defer t
+      :config
+      (setq sly-net-coding-system 'utf-8-unix))
+  # - |
+  #   (use-package rewrap
+  #     :defer t
+  #     :init
+  #     (add-hook 'text-mode-hook 'turn-on-rewrap-mode))
   - |-
     (defun my-scheduled-package-refresh ()
       "Runs package refresh only if it has been more than 7 days since the last run."

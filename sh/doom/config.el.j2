@@ -1,0 +1,54 @@
+;;; $DOOMDIR/config.el -*- lexical-binding: t; -*-
+
+;; Place your private configuration here! Remember, you do not need
+;; to run 'doom sync' after modifying this file!
+
+
+;; Some functionality uses this to identify you, e.g. GPG configuration, email
+;; clients, file templates and snippets. It is optional.
+{% if doom_user -%}
+(setq user-full-name "{{ doom_user.full_name }}"
+      user-mail-address "{{ doom_user.email_address }}")
+{% endif %}
+
+;; Doom exposes five (optional) variables for controlling fonts in Doom:
+;;
+;; - 'doom-font' -- the primary font to use
+;; - 'doom-variable-pitch-font' -- a non-monospace font (where applicable)
+;; - 'doom-big-font' -- used for 'doom-big-font-mode'; use this for presentations or streaming
+;; - 'doom-symbol-font' -- for symbols
+;; - 'doom-serif-font' -- for the 'fixed-pitch-serif' face
+;;
+;; See "C-h v doom-font" for documentation and more examples of what they accept:
+(setq {% for font in doom_fonts -%}
+{% if not loop.first %}{{ "\n" }}      {% endif %}doom-{%- if font.name | default("") -%}{{ font.name }}-{%- endif -%}font (font-spec :family "{{font.family}}"
+        {%- if font.size | default(false) -%}:size {{font.size | default(16) }}{%- endif -%} 
+        {%- if font.weight | default(false) -%}:weight '{{ font.weight | default("regular") }}{%- endif -%})
+{%- endfor -%})
+
+;; If you or Emacs cannot find your font, use 'M-x describe-font' to look them
+;; up, 'M-x eval-region' to execute elisp code, and 'M-x doom/reload-font' to
+;; refresh your font settings. If Emacs still cannot find your font, it likely
+;; was not installed correctly. Font issues are rarely Doom issues!
+
+;; Set doom theme
+(setq doom-theme '{{ doom_theme | default("doom-one") }})
+
+
+;; This determines the style of line numbers in effect. If set to 'nil', line
+;; numbers are disabled. For relative line numbers, set this to 'relative'.
+(setq display-line-numbers-type {% if display_line_nums_type | default(false) %}t{% else %}f{%endif %})
+
+{% if org %}
+;; Setup org-mode variables:
+(setq org-directory "{{ org.directory }}")
+{% if org.agenda_files | default([]) | length %}
+(setq org-agenda-files
+  '({% for file_or_dir in org.agenda_files %}{%- if not loop.first %}{{ "\n" }}    {% endif -%}"{{ file_or_dir }}"
+{%- endfor -%}))
+{% endif %}
+{% endif %}
+
+{% for snippet in doom_extra_settings -%}
+{{ snippet }}
+{% endfor %}

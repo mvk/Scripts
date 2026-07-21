@@ -1,0 +1,83 @@
+;;; $DOOMDIR/packages.el -*- lexical-binding: t; no-byte-compile: t -*-
+
+;; To install a package:
+;;
+;;   1. Declare them here in a 'package!' statement,
+;;   2. Run 'doom sync' in the shell,
+;;   3. Restart Emacs.
+;;
+;; Use 'C-h f package\!' to look up documentation for the 'package!' macro.
+
+
+;; Standard MELPA/ELPA/emacsmirror packages:
+{%- for pkg in packages_standard | default([]) %}
+{% if pkg.comment | default("") | length %};; {{ pkg.comment }}{% endif %}
+(package! {{ pkg.name }})
+{% else %}
+;; Install SOME-PACKAGE from MELPA, ELPA or emacsmirror:
+;; example of some-package
+;; (package! some-package)
+{% endfor %}
+
+;; Packages define with a recipe:
+{% for pkg in packages_recipe | default([]) %}
+{% if "comment" in pkg and pkg.comment | default("") | length %};; {{ pkg.comment }}{% endif %}
+(package! {{ pkg.name }}{% if "recipe" in pkg and pkg.recipe %}
+  :recipe ({%- if "host" in pkg.recipe %}:host {{ pkg.recipe.host }}{% endif %}
+           {% if "repo" in pkg.recipe %}:repo "{{ pkg.recipe.repo }}"{% endif %}
+           {% if "branch" in pkg.recipe %}:branch "{{ pkg.recipe.branch }}"{% endif %}
+           {% if "nonrecursive" in pkg.recipe and pkg.recipe.nonrecursive %}:nonrecursive t{% endif %}
+           {% if ("files" in pkg.recipe) and (pkg.recipe.files | default([]) | length) %}:files ({%- for fpattern in pkg.recipe.files %}{%- if not loop.first %}{{"\n                   "}}{%- endif %}"{{ fpattern }}"{% endfor -%})
+           {% endif -%}
+           {% if ("build" in pkg.recipe) and (pkg.recipe.build | default([]) | length) %}:build ({%- for item in pkg.recipe.build %}{%- if not loop.first %}{{"\n                   "}}{%- endif %}{{ item }}{% endfor -%})
+           {%- endif -%})
+{%- endif -%})
+{% else %}
+;; To install a package directly from a remote git repo, you must specify a
+;; :recipe. You will find documentation on what :recipe accepts here:
+;; https://github.com/radian-software/straight.el#the-recipe-format
+;; Example:
+;; (package! another-package
+;;   :recipe (:host github :repo "username/repo"))
+;;            :branch non-main
+;;            :nonrecursive t
+;;            :files ("some-file.el"
+;;                    "src/lisp/*.el")))
+;;            :build (:compile (:native-compile f))
+{%- endfor %}
+
+;; Disbale packages included with Doom:
+{% if packages_disabled | default([]) | length > 0 %}
+{% for pkg in packages_disabled %}
+(package! {{ pkg.name }} :disable t)
+{% endfor %}
+{% else %}
+;; If you`d like to disable a package included with Doom, you can do so here
+;; with the ':disable' property:
+;; (package! builtin-package :disable t)
+{% endif %}
+;; Pinned packages:
+{% if packages_pinned | default([]) | length %}
+{%- for pkg in packages_pinned -%}
+(package! {{ pkg.name }} :pin "{{ pkg.pin }}")
+{% endfor -%}
+{% else %}
+;; Use ':pin' to specify a particular commit to install.
+;; (package! builtin-package :pin "1a2b3c4d5e")
+{% endif %}
+
+
+;; Unpinned packages (usually outdated Doom packages):
+{% if packages_unpinned | default([]) | length %}
+{% for pkg in packages_unpinned -%}
+(unpin! {{ pkg.name }})
+{% endfor -%}
+{% else %}
+;; Doom`s packages are pinned to a specific commit and updated from release to
+;; release. The 'unpin!' macro allows you to unpin single packages...
+;; (unpin! pinned-package)
+;; ...or multiple packages
+;; (unpin! pinned-package another-pinned-package)
+;; ...Or *all* packages (NOT RECOMMENDED; will likely break things)
+;; (unpin! t)
+{% endif %}

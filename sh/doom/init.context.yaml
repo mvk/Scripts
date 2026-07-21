@@ -1,0 +1,169 @@
+---
+
+# Column (0-indexed) where the ";;" comment starts on each module line,
+# 8 (indent) + width of the widest module entry + 1 space. Widest entry
+# today is "(:if (featurep :system 'macos) macos)" (37 chars) -> 8+37+1=46.
+# Update by hand if a longer module entry is ever added.
+comment_start_column: 46
+
+doom_init:
+  input: []
+
+  completion:
+    - comment: complete with cap(f), cape and a flying feather!
+      name: corfu
+      extras:
+        - orderless
+    - comment: the search engine of the future
+      name: vertico
+
+  ui:
+    - name: doom
+      comment: what makes DOOM look the way it does
+    - name: dashboard
+      comment: a nifty splash screen for Emacs
+    - name: hl-todo
+      comment: highlight TODO/FIXME/NOTE/DEPRECATED/HACK/REVIEW
+    - name: modeline
+      comment: snazzy, Atom-inspired modeline, plus API
+    - name: ophints
+      comment: highlight the region an operation acts on
+    - name: popup
+      extras:
+        - defaults
+      comment: tame sudden yet inevitable temporary windows
+    - name: treemacs
+      comment: a project drawer, like neotree but cooler
+    - name: vc-gutter
+      extras:
+        - pretty
+      comment: vcs diff in the fringe
+    - name: vi-tilde-fringe
+      comment: fringe tildes to mark beyond EOB
+    - name: workspaces
+      comment: tab emulation, persistence & separate workspaces
+
+  editor:
+    - name: file-templates
+      comment: auto-snippets for empty files
+    - name: fold
+      comment: (nigh) universal code folding
+    - name: multiple-cursors
+      comment: editing in many places at once
+    - name: snippets
+      comment: my elves. They type so I don't have to
+    - name: whitespace
+      extras:
+        - guess
+        - trim
+      comment: a butler for your whitespace
+
+  emacs:
+    - name: dired
+      comment: making dired pretty [functional]
+    - name: electric
+      comment: smarter, keyword-based electric-indent
+    - name: tramp
+      comment: remote files at your arthritic fingertips
+    - name: undo
+      comment: persistent, smarter undo for your inevitable mistakes
+    - name: vc
+      comment: version-control and Emacs, sitting in a tree
+
+  term:
+    - name: shell
+      comment: simple shell REPL for Emacs
+    - name: vterm
+      comment: almost the best terminal emulation in Emacs
+
+  checkers:
+    - name: syntax
+      comment: tasing you for every semicolon you forget
+
+  tools:
+    - name: ansible
+    - name: debugger
+      extras:
+        - lsp
+      comment: stepping through code, to help you add bugs
+    - name: direnv
+    - name: docker
+    - name: eval
+      extras:
+        - overlay
+      comment: run code, run (also, REPLs)
+    - name: lookup
+      comment: navigate your code and its documentation
+    - name: llm
+      comment: when I said you needed friends, I didn't mean...
+    - name: magit
+      comment: a git porcelain for Emacs
+    - name: make
+      comment: run make tasks from Emacs
+    - name: terraform
+      comment: infrastructure as code
+
+  os:
+    - name: macos
+      condition: "if (featurep :system 'macos)"
+      comment: improve compatibility with macOS
+    - name: tty
+      comment: improve the terminal Emacs experience
+
+  lang:
+    - name: cc
+      extras:
+        - lsp
+      comment: C > C++ == 1
+    - name: common-lisp
+      comment: if you've seen one lisp, you've seen them all
+    - name: emacs-lisp
+      comment: drown in parentheses
+    - name: go
+      extras:
+        - lsp
+      comment: the hipster dialect
+    - name: haskell
+      extras:
+        - lsp
+      comment: a language that's lazier than I am
+    - name: json
+      comment: At least it ain't XML
+    - name: kotlin
+      comment: a better, slicker Java(Script)
+    - name: latex
+      comment: writing papers in Emacs has never been so fun
+    - name: lua
+      comment: one-based indices? one-based indices
+    - name: markdown
+      comment: writing docs for people to ignore
+    - name: org
+      comment: organize your plain life in plain text
+    - name: graphviz
+      comment: diagrams for confusing yourself even more
+    - name: python
+      comment: beautiful is better than ugly
+    - name: rust
+      extras:
+        - lsp
+        - tree-sitter
+      comment: Fe2O3.unwrap().unwrap().unwrap().unwrap()
+    - name: sh
+      extras:
+        - lsp
+        - tree-sitter
+      comment: she sells {ba,z,fi}sh shells on the C xor
+    - name: yaml
+      comment: JSON, but readable
+
+  email:
+    - name: mu4e
+      extras:
+        - org
+  app: []
+
+  config:
+    - name: default
+      extras:
+        - bindings
+        - smartparens

@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 
-# TODO: remove touching emacs install/configuration.
-# TODO: add instructing the user where to put emacs configurations [doom|spacemacs]
-
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 SCRIPT_NAME="$(basename "${BASH_SOURCE[0]}")" &>/dev/null
 SCRIPT_DEBUG="${SCRIPT_DEBUG:-0}"
 SCRIPT_FORCE="${SCRIPT_FORCE:-0}"
 SCRIPT_ID="${SCRIPT_ID:-"${SCRIPT_NAME%%.*}-$(date +%s || true)"}"
+if ! declare -p EMACS_CFG_FILES 2>/dev/null | grep -q '^declare -A'; then
+  declare -A EMACS_CFG_FILES
+else
+  EMACS_CFG_FILES=()
+fi
+
 if [[ -d "${SCRIPT_DIR}/lib" ]]; then
   for fname in "${SCRIPT_DIR}/lib"/*.bash; do
     [[ -r "${fname}" ]] || {
@@ -18,36 +21,37 @@ if [[ -d "${SCRIPT_DIR}/lib" ]]; then
     source "${fname}"
   done
 fi
+fname=.env."${SCRIPT_NAME%%.*}".bash
+# shellcheck disable=SC1090
+[[ -r "${fname}" ]] && source "${fname}"
 
 EMACS_FLAVOR="${EMACS_FLAVOR:-"spacemacs"}"
-EMACS_CFG_REPO="${EMACS_CFG_REPO:-"https://github.com/syl20bnr/spacemacs"}"
+EMACS_SVC_FILE="${EMACS_SVC_FILE:-".config/systemd/user/emacs-server-${EMACS_FLAVOR}.service"}"
+EMACS_SVC_TPL="${EMACS_SVC_TPL:-"${PWD}/.config/systemd/user/emacs-server-flavor.service.j2"}"
+EMACS_SVC_CTX="${EMACS_SVC_CTX:-"${PWD}/emacs-server-flavor.service.context.yaml"}"
+
+SYSTEMD_INSTALL_ROOT="${SYSTEMD_INSTALL_ROOT:-"${HOME}"}"
 QL_URL="${QL_URL:-"https://beta.quicklisp.org/quicklisp.lisp"}"
 QL_INIT_FILE="${QL_INIT_FILE:-"${PWD}/quicklisp-init.lisp"}"
-EMACS_SVC_FILE="${EMACS_SVC_FILE:-".config/systemd/user/emacs-headless.service"}"
-EMACS_SVC_TPL="${EMACS_SVC_TPL:-"${PWD}/${EMACS_SVC_FILE}.j2"}"
-EMACS_SVC_CTX="${EMACS_SVC_CTX:-"${PWD}/${EMACS_SVC_FILE##*/}.context.yaml"}"
-EMACS_CFG_DIR="${EMACS_CFG_DIR:-"${HOME}/.emacs.d"}"
-SYSTEMD_INSTALL_ROOT="${SYSTEMD_INSTALL_ROOT:-"${HOME}"}"
 MU4E_ENABLED="${MU4E_ENABLED:-"0"}"
 
-EMACS_CFG_FILE="${EMACS_CFG_FILE:-"${HOME}/.spacemacs"}"
-EMACS_CFG_TPL="${EMACS_CFG_TPL:-"${PWD}/$(basename "${EMACS_CFG_FILE}").j2"}"
-EMACS_CFG_CTX="${EMACS_CFG_CTX:-"${PWD}/$(basename "${EMACS_CFG_FILE}").context.yaml"}"
 SBCL_CFG_FILE="${SBCL_CFG_FILE:-"${HOME}/.sbclrc"}"
 SBCL_CFG_TPL="${SBCL_CFG_TPL:-"${PWD}/$(basename "${SBCL_CFG_FILE}").j2"}"
 SBCL_CFG_CTX="${SBCL_CFG_CTX:-"${PWD}/$(basename "${SBCL_CFG_FILE}").context.yaml"}"
-DESKTOP_FILE="${DESKTOP_FILE:-"${HOME}/.local/share/applications/emacsclient.desktop"}"
-DESKTOP_TPL="${DESKTOP_TPL:-"${PWD}/$(basename "${DESKTOP_FILE}").j2"}"
-DESKTOP_CTX="${DESKTOP_CTX:-"${PWD}/$(basename "${DESKTOP_FILE}").context.yaml"}"
+
+DESKTOP_FILE="${DESKTOP_FILE:-"${HOME}/.local/share/applications/emacsclient-${EMACS_FLAVOR}.desktop"}"
+DESKTOP_TPL="${DESKTOP_TPL:-"${PWD}/emacsclient.desktop.j2"}"
+DESKTOP_CTX="${DESKTOP_CTX:-"${DESKTOP_FILE//j2/context.yaml}"}"
+
 PLASMA_SHCSRC="${PLASMA_SHCSRC:-"${HOME}/.config/kglobalshortcutsrc"}"
 PLASMA_KEY="${PLASMA_KEY:-"_launch"}"
-PLASMA_KEY_VAL="${PLASMA_KEY_VAL:-"Ctrl+Meta+E,none,Spacemacs Client CLI Bound"}"
+PLASMA_KEY_VAL="${PLASMA_KEY_VAL:-"Ctrl+Meta+E,none,Emacs Client CLI Bound (${EMACS_FLAVOR})"}"
 QDBUS_NS="${QDBUS_NS:-"org.kde.KWin"}"
 
 SETUP_PACKAGES_SKIP="${SETUP_PACKAGES_SKIP:-"1"}"
 SETUP_EMACS_CFG_DIR_SKIP="${SETUP_EMACS_CFG_DIR_SKIP:-"1"}"
 SETUP_QUICKLISP_SKIP="${SETUP_QUICKLISP_SKIP:-"1"}"
-SETUP_EMACS_CFG_FILE_SKIP="${SETUP_EMACS_CFG_FILE_SKIP:-"0"}"
+SETUP_EMACS_CFG_FILES_SKIP="${SETUP_EMACS_CFG_FILES_SKIP:-"0"}"
 SETUP_SBCLRC_FILE_SKIP="${SETUP_SBCLRC_FILE_SKIP:-"1"}"
 SETUP_EMACS_SVC_SKIP="${SETUP_EMACS_SVC_SKIP:-"1"}"
 SETUP_DESKTOP_FILE_SKIP="${SETUP_DESKTOP_FILE_SKIP:-"1"}"
@@ -80,6 +84,8 @@ DNF_PACKAGES=(
   gcc
   make
   rlwrap
+  fd-find
+  ripgrep
 )
 if [[ "${MU4E_ENABLED}" -gt 0 ]]; then
   APT_PACKAGES+=(
@@ -375,21 +381,40 @@ render_template() {
   return "${rc}"
 }
 
-setup_emacs_cfg_file() {
+render_templates_from_tuple() {
+  local -n \
+    config_triple_assoc_array
   local \
-    cfg_file \
-    trg_base \
-    tpl_file \
-    ctx_file \
+    key \
+    tuple \
+    output \
+    template \
+    context \
     rc
-  cfg_file="${1?cannot continue without cfg_file}" # is generated
+  config_triple_assoc_array="${1?cannot continue without config_triple_assoc_array}"
+  for key in "${!config_triple_assoc_array[@]}"; do
+    log.debug "parsing the value of the key ${key}"
+    tuple="${config_triple_assoc_array["${key}"]}"
+    IFS=, read -r output template context <<<"${tuple}"
+    render_template "${output}" "${template}" "${context}"
+    rc=$?
+  done
+}
+
+setup_emacs_cfg_files() {
+  local \
+    cfg_files_assoc_array
+  local \
+    rc
+  cfg_files_assoc_array="${1?cannot continue without cfg_files_assoc_array}"
   skip_disabled "${FUNCNAME[0]}" || return 0
-  skip_existing "${FUNCNAME[0]}" "${cfg_file}" || return 0
-  trg_base="$(basename "${cfg_file}")"
-  tpl_file="${2:-"${trg_base}.j2"}"           # must exist
-  ctx_file="${3:-"${trg_base}.context.yaml"}" # is generated
-  # ensure template exists
-  render_template "${cfg_file}" "${tpl_file}" "${ctx_file}"
+  # skip_existing "${FUNCNAME[0]}" "${cfg_file}" || return 0
+  # trg_base="$(basename "${cfg_file}")"
+  # tpl_file="${2:-"${trg_base}.j2"}"           # must exist
+  # ctx_file="${3:-"${trg_base}.context.yaml"}" # is generated
+  # # ensure template exists
+  # render_template "${cfg_file}" "${tpl_file}" "${ctx_file}"
+  render_templates_from_tuple "${cfg_files_assoc_array}"
   rc=$?
   return "${rc}"
 }
@@ -584,11 +609,11 @@ main() {
   setup_sbclrc_file "${params[@]}"
   rc=$?
   params=(
-    "${EMACS_CFG_FILE}"
-    "${EMACS_CFG_TPL}"
-    "${EMACS_CFG_CTX}"
+    EMACS_CFG_FILES
+    # "${EMACS_CFG_TPL}"
+    # "${EMACS_CFG_CTX}"
   )
-  setup_emacs_cfg_file "${params[@]}"
+  setup_emacs_cfg_files "${params[@]}"
   rc=$?
   params=(
     "${EMACS_SVC_FILE}"

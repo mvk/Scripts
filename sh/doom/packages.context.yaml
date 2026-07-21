@@ -1,0 +1,52 @@
+---
+
+packages_standard:
+  - comment: "tidal cycles"
+    name: tidal
+  - comment: "Nu-shell mode"
+    name: nushell-mode
+  - comment: "Mermaid diagrams support"
+    name: mermaid-mode
+  - comment: "Org-Mode Mermaid support"
+    name: ob-mermaid
+
+packages_recipe: []
+# packages_recipe:
+#   - name: pkg           # Package name
+#     recipe:
+#       host: github        # git server or url
+#       team: tm1           # team/user
+#       repo: repo1         # repository
+#       branch: br1         # branch/tag/hash
+#       nonrecursive: true  # Do not pull git submodules recursively
+#       files:              # Limit/specify list of files
+#         - folder/file.el  # direct path
+#         - src/lisp/*.el   # regular expression
+#       build:
+#         - ":compile"
+#         - ":not native-compile"
+#         - ":autoloads t"
+#         - |-
+#           (:custom (("make" "all")
+#                                        ("make" "info")))
+
+
+packages_disabled: []
+# packages_disabled:
+#   - name: abc
+
+packages_pinned: []
+# packages_pinned:
+#   - name: pkg1      # Package name
+#     pin: v1.2.3     # tag
+#   - name: pkg2
+#     pin: develop    # branch
+#   - name: pkg2
+#     pin: 1a2b3c4d5e # commit id
+#
+
+
+packages_unpinned: []
+# packages_unpinned:
+#   - name: pkg1
+#   - name: pkg2

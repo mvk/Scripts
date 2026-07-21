@@ -1,7 +1,13 @@
 [Desktop Entry]
 Type=Application
-Name=Emacs Client [flavor: {{ flavor }}]
+Name=Emacs Client [flavor: {{ flavor | default("gnu") }}]
 Exec={{ executable }} -c
-NoDisplay=true
-StartupNotify=false
+Icon={{ icon | default("none") }}
+{% if categories -%}
+Categories={%- for category in categories -%}
+{{category}};
+{%- endfor -%}
+{% endif %}
+NoDisplay={{ nodisplay | default("false") }}
+StartupNotify={{ startupdnotify | default("false") }}
 X-KDE-GlobalAccel-CommandShortcut=true

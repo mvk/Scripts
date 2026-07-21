@@ -1,0 +1,219 @@
+---
+
+doom_user:
+  full_name: # First Last names
+  email_address: # your email
+
+doom_fonts:
+  - name: ''
+    family: FiraCode Nerd Font
+    size: 16
+    weight: regular
+  - name: variable-pitch
+    family: FiraSans
+    size: 17
+  - name: big
+    family: FiraCode Nerd Font
+    size: 24
+  - name: symbol
+    family: JuliaMono
+    weight: regular
+  - name: serif
+    family: Noto Serif
+  - name: emoji
+    family: Noto Color Emoji
+
+doom_theme: doom-dracula
+display_line_nums_type: true
+
+
+org:
+  directory: "~/org/"
+  agenda_files:
+    - "~/org/"
+    - "~/Documents/Personal/org/"
+
+doom_extra_settings:
+  - |
+    ;; =============================================================================
+    ;; Disable conflicting shortcuts for vertico
+    ;; =============================================================================
+    (after! vertico
+      (add-hook 'mouse-leave-buffer-hook #'minibuffer-keyboard-quit)) ; If using Vertico
+  - |
+    ;; =============================================================================
+    ;; Force explicit frame geometry across all created frames (standalone and client)
+    ;; =============================================================================
+    (add-to-list 'default-frame-alist '(width . 80))
+    (add-to-list 'default-frame-alist '(height . 46))
+  - |
+    ;; =============================================================================
+    ;; Tital cycles setup
+    ;; =============================================================================
+    (setq tidal-boot-script-path "~/.cabal/store/ghc-9.14.1-9d42/tidal-1.10.3-9476ebcc54c33be73cfc0bc1973b3ff5a5a23597667ab486bc9263ed41f5d59c/share/BootTidal.hs")
+  - |
+    ;; =============================================================================
+    ;; Docker podman connection
+    ;; =============================================================================
+    (after! docker
+            ;; Instruct docker package to use podman command
+            (setq docker-command "podman"
+                  docker-container-backend 'podman))
+  - |
+    ;; =============================================================================
+    ;; Shell Configuration
+    ;; =============================================================================
+    ;; Setup flycheck checker for shell to be ShellCheck
+    (after! flycheck
+            (add-to-list 'flycheck-checkers 'sh-shellcheck))
+    (setq-hook! 'sh-mode-hook +format-with 'shfmt)
+    ;; Setup how to run Bats tests
+    (defun my/run-bats-test ()
+      "Run BATS on the current buffer or test directory."
+      (interactive)
+      (let ((file (buffer-file-name)))
+        (if (and file (string-match-p "\\.bats$" file))
+            (compile (format "bats %s" (shell-quote-argument file)))
+          (compile "bats tests/"))))
+    ;; Bind to local leader prefix in shell modes (e.g., SPC m t r)
+    (map! :map sh-mode-map
+          :localleader
+          :desc "Run BATS tests" "t r" #'my/run-bats-test)
+  - |
+    ;; =============================================================================
+    ;; Nushell handling .nu files
+    ;; =============================================================================
+    (use-package! nushell-mode
+                  :mode "\\.nu\\'")
+  - |
+    ;; =============================================================================
+    ;; Hebrew settings:
+    ;; =============================================================================
+    ;; 1. Ensure dynamic bidirectional rendering is active (enabled by default in modern Emacs)
+    (setq-default bidi-display-reordering t)
+    ;; 2. Set dynamic paragraph direction
+    ;; nil means Emacs automatically detects whether a line/paragraph is RTL (Hebrew)
+    ;; or LTR (English) based on the first strong directional character.
+    (setq-default bidi-paragraph-direction nil)
+    ;; 3. (Optional) Force ALL paragraphs in a specific buffer to render RTL
+    ;; Useful to open a purely Hebrew document where headers or code markers trick auto-detection:
+    ;; (setq-default bidi-paragraph-direction \'right-to-left)
+  - |
+    ;; =============================================================================
+    ;; Setup Fill-Column (max width marker)
+    ;; =============================================================================
+    ;; Set default fill-column position
+    (setq-default fill-column 100)
+    ;; Alternative: enable only in code and prose files:
+    (add-hook 'prog-mode-hook #'display-fill-column-indicator-mode)
+    (add-hook 'text-mode-hook #'display-fill-column-indicator-mode)
+  - |
+    ;; =============================================================================
+    ;; DEBUGGER (DAP-Mode / GDB / RealGUD)
+    ;; =============================================================================
+    ;; Standard F-key debugging controls (like IDEs) + Local Leader shortcuts
+    (after! dap-mode
+      ;; Global function keys for active debugging sessions
+      (map! :g "<f5>"   #'dap-continue
+            :g "<f10>"  #'dap-next
+            :g "<f11>"  #'dap-step-in
+            :g "<S-f11>" #'dap-step-out
+            :g "<f9>"   #'dap-breakpoint-toggle)
+      ;; Mode-specific shortcuts under C-c d (Debugger)
+      (map! :map dap-mode-map
+            :prefix "C-c d"
+            :desc "Start Debugging"      "d" #'dap-debug
+            :desc "Toggle Breakpoint"    "b" #'dap-breakpoint-toggle
+            :desc "Continue / Run"       "c" #'dap-continue
+            :desc "Next (Step Over)"     "n" #'dap-next
+            :desc "Step In"              "i" #'dap-step-in
+            :desc "Step Out"             "o" #'dap-step-out
+            :desc "Disconnect / Stop"    "q" #'dap-disconnect
+            :desc "Inspect at Point"     "e" #'dap-eval-thing-at-point))
+  - |
+    ;; =============================================================================
+    ;; C / C++ LSP (lsp-mode / ccls / clangd)
+    ;; =============================================================================
+    ;; Non-Evil LSP navigation and refactoring shortcuts under C-c l
+    (after! lsp-mode
+      (map! :map (c-mode-map c++-mode-map)
+            :prefix "C-c l"
+            :desc "Find Definition"      "g" #'lsp-find-definition
+            :desc "Find References"      "r" #'lsp-find-references
+            :desc "Find Implementation"  "i" #'lsp-find-implementation
+            :desc "Rename Symbol"        "R" #'lsp-rename
+            :desc "Code Actions"         "a" #'lsp-execute-code-action
+            :desc "Format Buffer"        "f" #'lsp-format-buffer
+            :desc "LSP Diagnostics"      "d" #'lsp-ui-diagnostics-open
+            :desc "Symbol Outline"       "o" #'lsp-ui-imenu))
+  - |
+    ;; =============================================================================
+    ;; LATEX (AUCTeX / LaTeX-mode)
+    ;; =============================================================================
+    ;; LaTeX compiling, viewing, and environment shortcuts under C-c c
+    (after! latex
+      (map! :map LaTeX-mode-map
+            :prefix "C-c c"
+            :desc "Compile Document"     "c" #'TeX-command-run-all
+            :desc "View PDF Output"      "v" #'TeX-view
+            :desc "Insert Environment"   "e" #'LaTeX-environment
+            :desc "Insert Section"       "s" #'LaTeX-section
+            :desc "Close Environment"    "]" #'LaTeX-close-environment
+            :desc "Toggle Math Mode"     "m" #'LaTeX-math-mode))
+  - |
+    ;; =============================================================================
+    ;; GRAPHVIZ (graphviz-dot-mode)
+    ;; =============================================================================
+    ;; Graphviz compilation, previewing, and layout shortcuts under C-c g
+    (after! graphviz-dot-mode
+      (map! :map graphviz-dot-mode-map
+            :prefix "C-c g"
+            :desc "Compile Graph"         "c" #'compile
+            :desc "Preview Rendered Graph" "p" #'graphviz-dot-preview
+            :desc "View Output Image"      "v" #'graphviz-dot-view
+            :desc "Indent Buffer"          "f" #'graphviz-dot-indent-graph))
+  - |
+    ;; =============================================================================
+    ;; MERMAID diagrams support
+    ;; =============================================================================
+    (use-package! ob-mermaid
+      :config
+      ;; Tell Org-Babel to recognize mermaid code blocks
+      (org-babel-do-load-languages
+        'org-babel-load-languages
+        '((mermaid . t))))
+    (use-package! mermaid-mode
+      :mode "\\.mmd\\'"
+      :config
+      ;; Ensure Emacs finds the mmdc binary
+      (setq mermaid-mmdc-location "mmdc"))
+  - |
+    ;; =============================================================================
+    ;; EMAIL mu4e setup
+    ;; =============================================================================
+    ;; mu4e reading email settings
+    (after! mu4e
+      (setq mu4e-change-filenames-when-moving t
+            mu4e-get-mail-command "mbsync -a"
+            mu4e-update-interval 300)
+      (set-email-account! "iCloud"
+        '((mu4e-sent-folder       . "/iCloud/Sent Messages")
+          (mu4e-drafts-folder     . "/iCloud/Drafts")
+          (mu4e-trash-folder      . "/iCloud/Archive")
+          (mu4e-refile-folder     . "/iCloud/Archive")
+          (smtpmail-smtp-server   . "smtp.mail.me.com")
+          (smtpmail-smtp-service  . 587)
+          (smtpmail-stream-type   . starttls)
+          (smtpmail-smtp-user     . "username"))
+        t))
+    ;; (setq message-send-mail-function 'smtpmail-send-it
+    ;;       smtpmail-smtp-server "smtp.mail.me.com"
+    ;;       smtpmail-smtp-service 587
+    ;;       smtpmail-stream-type 'starttls
+    ;;       smtpmail-smtp-user "username")
+  - |
+    ;; =============================================================================
+    ;; EXTRAS - additional settings
+    ;; =============================================================================
+    ;; Prevent Doom from routing EWW buffers into bottom popups
+    (set-popup-rule! "^\\*eww" :ignore t)

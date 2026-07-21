@@ -37,12 +37,12 @@ EMACS_DESKTOP_FILE="${EMACS_DESKTOP_FILE:-"${HOME}/.local/share/applications/ema
 EMACS_DESKTOP_TPL_FILE="${EMACS_DESKTOP_TPL_FILE:-"${PWD}/${EMACS_DESKTOP_FILE##*/}.j2"}"
 EMACS_DESKTOP_CTX_FILE="${EMACS_DESKTOP_CTX_FILE:-"${EMACS_DESKTOP_TPL_FILE%/*}.context.yaml"}"
 
-SETUP_PACKAGES_SKIP="${SETUP_PACKAGES_SKIP:-"0"}"
-SETUP_EMACS_CFG_DIR_SKIP="${SETUP_EMACS_CFG_DIR_SKIP:-"0"}"
-SETUP_QUICKLISP_SKIP="${SETUP_QUICKLISP_SKIP:-"0"}"
-SETUP_EMACS_CFG_FILE_SKIP="${SETUP_EMACS_CFG_FILE_SKIP:-"0"}"
-SETUP_SBCLRC_FILE_SKIP="${SETUP_SBCLRC_FILE_SKIP:-"0"}"
-SETUP_EMACS_SVC_SKIP="${SETUP_EMACS_SVC_SKIP:-"0"}"
+SETUP_PACKAGES_SKIP="${SETUP_PACKAGES_SKIP:-"1"}"
+SETUP_EMACS_CFG_DIR_SKIP="${SETUP_EMACS_CFG_DIR_SKIP:-"1"}"
+SETUP_QUICKLISP_SKIP="${SETUP_QUICKLISP_SKIP:-"1"}"
+SETUP_EMACS_CFG_FILE_SKIP="${SETUP_EMACS_CFG_FILE_SKIP:-"1"}"
+SETUP_SBCLRC_FILE_SKIP="${SETUP_SBCLRC_FILE_SKIP:-"1"}"
+SETUP_EMACS_SVC_SKIP="${SETUP_EMACS_SVC_SKIP:-"1"}"
 SETUP_EMACS_DESKTOP_HOOKS_SKIP="${SETUP_EMACS_DESKTOP_HOOKS_SKIP:-"0"}"
 declare -A DISTRO_ID_PKG_MGR_MAP
 
@@ -493,20 +493,46 @@ setup_emacs_desktop_hooks() {
 ---
 flavor: "${flavor}"
 executable: "${executable}"
+icon: emacs
+nodisplay: false
+categories:
+  - Development
+  - TextEditor
+  - Utility
 _EOF
   install_dir="${target_file%/*}"
   log.debug "install_dir=${install_dir}"
   mkdir -p "${install_dir}"
   render_template "${target_file}" "${tpl_file}" "${ctx_file}"
-
   cmd=(
-    kwriteconfig6 --file "${shortcutsrc}"
+    desktop-file-validate
+    --no-hints
+    "${target_file}"
+  )
+  cmd.run 0 "${cmd[@]}"
+  cmd=(kbuildsycoca6)
+  cmd.run 0 "${cmd[@]}"
+  cmd=(
+    kwriteconfig6
+    --file "${shortcutsrc}"
     --group "${target_file##*/}"
     --key "_launch" "Ctrl+Meta+E,none,Spacemacs Client CLI Bound"
   )
   cmd.run 0 "${cmd[@]}"
-  qdbus-qt6 org.kde.KWin /KWin org.kde.KWin.reconfigure
-
+  cmd=(
+    qdbus-qt6
+    org.kde.KWin
+    /KWin org.kde.KWin.reconfigure
+  )
+  cmd.run 0 "${cmd[@]}"
+  cmd=(
+    systemctl
+    --user
+    restart
+    plasma-kglobalaccel.service
+  )
+  cmd.run 0 "${cmd[@]}"
+  return $?
 }
 
 main() {

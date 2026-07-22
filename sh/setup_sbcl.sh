@@ -33,9 +33,13 @@ EMACS_CFG_CTX="${EMACS_CFG_CTX:-"${PWD}/$(basename "${EMACS_CFG_FILE}").context.
 SBCL_CFG_FILE="${SBCL_CFG_FILE:-"${HOME}/.sbclrc"}"
 SBCL_CFG_TPL="${SBCL_CFG_TPL:-"${PWD}/$(basename "${SBCL_CFG_FILE}").j2"}"
 SBCL_CFG_CTX="${SBCL_CFG_CTX:-"${PWD}/$(basename "${SBCL_CFG_FILE}").context.yaml"}"
-EMACS_DESKTOP_FILE="${EMACS_DESKTOP_FILE:-"${HOME}/.local/share/applications/emacsclient.desktop"}"
-EMACS_DESKTOP_TPL_FILE="${EMACS_DESKTOP_TPL_FILE:-"${PWD}/${EMACS_DESKTOP_FILE##*/}.j2"}"
-EMACS_DESKTOP_CTX_FILE="${EMACS_DESKTOP_CTX_FILE:-"${EMACS_DESKTOP_TPL_FILE%/*}.context.yaml"}"
+DESKTOP_FILE="${DESKTOP_FILE:-"${HOME}/.local/share/applications/emacsclient.desktop"}"
+DESKTOP_TPL="${DESKTOP_TPL:-"${PWD}/$(basename "${DESKTOP_FILE}").j2"}"
+DESKTOP_CTX="${DESKTOP_CTX:-"${PWD}/$(basename "${DESKTOP_FILE}").context.yaml"}"
+PLASMA_SHCSRC="${PLASMA_SHCSRC:-"${HOME}/.config/kglobalshortcutsrc"}"
+PLASMA_KEY="${PLASMA_KEY:-"_launch"}"
+PLASMA_KEY_VAL="${PLASMA_KEY_VAL:-"Ctrl+Meta+E,none,Spacemacs Client CLI Bound"}"
+QDBUS_NS="${QDBUS_NS:-"org.kde.KWin"}"
 
 SETUP_PACKAGES_SKIP="${SETUP_PACKAGES_SKIP:-"1"}"
 SETUP_EMACS_CFG_DIR_SKIP="${SETUP_EMACS_CFG_DIR_SKIP:-"1"}"
@@ -43,7 +47,8 @@ SETUP_QUICKLISP_SKIP="${SETUP_QUICKLISP_SKIP:-"1"}"
 SETUP_EMACS_CFG_FILE_SKIP="${SETUP_EMACS_CFG_FILE_SKIP:-"1"}"
 SETUP_SBCLRC_FILE_SKIP="${SETUP_SBCLRC_FILE_SKIP:-"1"}"
 SETUP_EMACS_SVC_SKIP="${SETUP_EMACS_SVC_SKIP:-"1"}"
-SETUP_EMACS_DESKTOP_HOOKS_SKIP="${SETUP_EMACS_DESKTOP_HOOKS_SKIP:-"0"}"
+SETUP_DESKTOP_FILE_SKIP="${SETUP_DESKTOP_FILE_SKIP:-"0"}"
+SETUP_PLASMA_HOOKS_SKIP="${SETUP_PLASMA_HOOKS_SKIP:-"0"}"
 declare -A DISTRO_ID_PKG_MGR_MAP
 
 DISTRO_ID_PKG_MGR_MAP['Fedora']="dnf"
@@ -118,7 +123,9 @@ run.ensure_apps() {
 }
 
 runner.dnf() {
-  local op
+  local \
+    op \
+    curr_uid
   local -a \
     packages \
     run_cmd
@@ -129,8 +136,10 @@ runner.dnf() {
     log.warn "no packages were passed for operation: '${op}'"
   fi
   run_cmd=()
-  if [[ "$(id -u)" -ne "0" ]]; then
+  curr_uid="$(id -u || true)"
+  if [[ "${curr_uid}" -ne "0" ]]; then
     run_cmd+=(sudo)
+    log.debug "prepended sudo to the command. [REASON: uid=${curr_uid} (!= 0) ]"
   fi
   run_cmd+=(dnf "${op}")
   if [[ "${#DNF_FLAGS[@]}" -gt 0 ]]; then
@@ -348,6 +357,8 @@ render_template() {
   context_format="${context##*.}"
   [[ -f "${template}" ]] || die 1 "Template is missing: ${template}"
   [[ -f "${context}" ]] || die 1 "Template context is missing: ${context}"
+  mkdir -p "${output%/*}"
+  log.debug "Ensured folder '${output%/*}' exists"
   log.debug "Launching the template engine"
   # render the template tpl_file using context ctx_file as output trg_file:
   cmd=(minijinja-cli)
@@ -435,7 +446,7 @@ ensure_emacs_flavor() {
   flavor="${2?cannot continue withoug flavor}"
   expected_flavor="${2?cannot continue withoug expected_flavor}"
   if [[ "${flavor}" != "${expected_flavor}" ]]; then
-    die 1 "Configuration conflict: config file ${filepath} does not match flavor: ${flavor}. Expected: ${expected_flavor}"
+    die 1 "Configuration conflict: ${filepath} does not match flavor: ${flavor}. Expected: ${expected_flavor}"
   fi
   return 0
 }
@@ -465,120 +476,118 @@ ensure_configuration() {
   return 0
 }
 
-setup_emacs_desktop_hooks() {
+setup_desktop_file() {
   local \
-    target_file \
+    desktop_file \
     tpl_file \
     ctx_file \
-    flavor \
-    shortcutsrc \
-    executable \
-    install_dir
+    rc
   local -a \
     cmd
-  target_file="${1:-"${EMACS_DESKTOP_FILE}"}"
-  tpl_file="${2:-"${EMACS_DESKTOP_TPL_FILE}"}"
-  ctx_file="${3:-"${EMACS_DESKTOP_CTX_FILE}"}"
-  flavor="${4:-"${EMACS_FLAVOR}"}"
-  shortcutsrc="${5:-"${HOME}/.config/kglobalshortcutsrc"}"
-  executable="${6:-""}"
+
+  desktop_file="${1?cannot continue without desktop_file}"
+  tpl_file="${2:-"${DESKTOP_TPL}"}"
+  ctx_file="${3:-"${DESKTOP_CTX}"}"
   skip_disabled "${FUNCNAME[0]}" || return 0
-  skip_existing "${FUNCNAME[0]}" "${target_file}" || return 0
-  if [[ -z "${executable}" ]]; then
-    executable="${target_file##*/}"
-    executable="${executable%.*}"
-    executable="/usr/bin/${executable}"
-  fi
-  cat >"${ctx_file}" <<_EOF
----
-flavor: "${flavor}"
-executable: "${executable}"
-icon: emacs
-nodisplay: false
-categories:
-  - Development
-  - TextEditor
-  - Utility
-_EOF
-  install_dir="${target_file%/*}"
-  log.debug "install_dir=${install_dir}"
-  mkdir -p "${install_dir}"
-  render_template "${target_file}" "${tpl_file}" "${ctx_file}"
-  cmd=(
-    desktop-file-validate
-    --no-hints
-    "${target_file}"
-  )
+  skip_existing "${FUNCNAME[0]}" "${desktop_file}" || return 0
+  render_template "${desktop_file}" "${tpl_file}" "${ctx_file}"
+  cmd=(desktop-file-validate --no-hints "${desktop_file}")
   cmd.run 0 "${cmd[@]}"
+  rc=$?
+  log.debug "Completed: '${cmd[*]}' with rc=${rc}"
+  return "${rc}"
+}
+
+setup_plasma_hooks() {
+  local \
+    shortcutsrc \
+    kcfg_group \
+    kcfg_key \
+    kcfg_value \
+    qdbus_ns \
+    unit \
+    rc
+  local -a \
+    services \
+    cmd
+  shortcutsrc="${1?cannot continue without shortcutsrc}"
+  kcfg_group="${2?cannot continue without kcfg_group}"
+  kcfg_key="${3?cannot continue without kcfg_key}"
+  kcfg_value="${4?cannot continue without kfcg_value}"
+  qdbus_ns="${5?cannot continue without qdbus_ns}"
+  shift 5
+  services=("${@}")
+  skip_disabled "${FUNCNAME[0]}" || return 0
   cmd=(kbuildsycoca6)
   cmd.run 0 "${cmd[@]}"
-  cmd=(
-    kwriteconfig6
-    --file "${shortcutsrc}"
-    --group "${target_file##*/}"
-    --key "_launch" "Ctrl+Meta+E,none,Spacemacs Client CLI Bound"
-  )
+  rc=$?
+  log.debug "Completed: '${cmd[*]}' with rc=${rc}"
+  mkdir -p "${shortcutsrc##*/}"
+  log.debug "Ensured folder containing ${shortcutsrc} exists"
+  cmd=(kwriteconfig6 --file "${shortcutsrc}" --group "${kcfg_group}" --key "${kcfg_key}" "${kcfg_value}")
   cmd.run 0 "${cmd[@]}"
-  cmd=(
-    qdbus-qt6
-    org.kde.KWin
-    /KWin org.kde.KWin.reconfigure
-  )
+  rc=$?
+  log.debug "Completed: '${cmd[*]}' with rc=${rc}"
+  cmd=(qdbus-qt6 "${qdbus_ns}" /KWin "${qdbus_ns}.reconfigure")
   cmd.run 0 "${cmd[@]}"
-  cmd=(
-    systemctl
-    --user
-    restart
-    plasma-kglobalaccel.service
-  )
-  cmd.run 0 "${cmd[@]}"
-  return $?
+  rc=$?
+  log.debug "Completed: '${cmd[*]}' with rc=${rc}"
+  if [[ "${#services[@]}" -eq 0 ]]; then
+    log.debug "no user systemd services to restart."
+    return "${rc}"
+  fi
+  log.debug "Restarting user systemd services:"
+  for unit in "${services[@]}"; do
+    cmd=(systemctl --user restart "${unit}")
+    cmd.run 0 "${cmd[@]}"
+    rc=$?
+    log.debug "User systemd unit ${unit} restarted with rc=${rc}"
+  done
+  return "${rc}"
 }
 
 main() {
   local \
-    rc \
-    distro_id
+    distro_id \
+    kcfg_group \
+    rc
   local -a \
-    packages
+    params
+  distro_id="${1:-"$(run.detect_distro_id)"}"
+  # do some logic here
   cmd.run 0 pushd "${PWD}" &>/dev/null || {
     log.fatal "Failed to pushd ${PWD}."
     exit 1
   }
-  distro_id="$(run.detect_distro_id)"
-  # do some logic here
   setup_packages "${distro_id}"
   rc=$?
-  setup_emacs_cfg_dir \
-    "${EMACS_CFG_REPO}" \
-    "${EMACS_CFG_DIR}"
+  params=("${EMACS_CFG_REPO}" "${EMACS_CFG_DIR}")
+  setup_emacs_cfg_dir "${params[@]}"
   rc=$?
-  setup_quicklisp \
-    "${QL_URL}" \
-    "${QL_INIT_FILE}"
+  params=("${QL_URL}" "${QL_INIT_FILE}")
+  setup_quicklisp "${params[@]}"
   rc=$?
-  setup_sbclrc_file \
-    "${SBCL_CFG_FILE}" \
-    "${SBCL_CFG_TPL}" \
-    "${SBCL_CFG_CTX}"
+  para
+  params=("${SBCL_CFG_FILE}" "${SBCL_CFG_TPL}" "${SBCL_CFG_CTX}")
+  setup_sbclrc_file "${params[@]}"
   rc=$?
-  setup_emacs_cfg_file \
-    "${EMACS_CFG_FILE}" \
-    "${EMACS_CFG_TPL}" \
-    "${EMACS_CFG_CTX}"
+  params=("${EMACS_CFG_FILE}" "${EMACS_CFG_TPL}" "${EMACS_CFG_CTX}")
+  setup_emacs_cfg_file "${params[@]}"
   rc=$?
-  setup_emacs_svc \
-    "${EMACS_SVC_FILE}" \
-    "${EMACS_SVC_TPL}" \
-    "${EMACS_SVC_CTX}" \
-    "${SYSTEMD_INSTALL_ROOT}"
+  params=("${EMACS_SVC_FILE}" "${EMACS_SVC_TPL}" "${EMACS_SVC_CTX}" "${SYSTEMD_INSTALL_ROOT}")
+  setup_emacs_svc "${params[@]}"
   rc=$?
-  setup_emacs_desktop_hooks \
-    "${EMACS_DESKTOP_FILE}" \
-    "${EMACS_DESKTOP_TPL_FILE}" \
-    "${EMACS_DESKTOP_CTX_FILE}" \
-    "${EMACS_FLAVOR}" \
-    "${HOME}/.config/kglobalshortcutsrc"
+  params=("${DESKTOP_FILE}" "${DESKTOP_TPL}" "${DESKTOP_CTX}")
+  setup_desktop_file "${params[@]}"
+  rc=$?
+  kcfg_group="${DESKTOP_FILE##/*}"
+  kcfg_group="${kcfg_group%.*}"
+  log.debug "Calculated kconfig group: '${kcfg_group}'"
+  params=("${PLASMA_SHCSRC}" "${kcfg_group}" "${PLASMA_KEY}" "${PLASMA_KEY_VAL}" "${QDBUS_NS}")
+  params+=(
+    "plasma-kglobalaccel.service"
+  )
+  setup_plasma_hooks "${params[@]}"
   rc=$?
   cmd.run 0 popd &>/dev/null || {
     log.fatal "Failed to get back from '${PWD}'"

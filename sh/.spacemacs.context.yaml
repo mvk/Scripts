@@ -4,55 +4,77 @@ default_font_size: 16.0
 emacs_enable_server: t
 emacs_editing_style: emacs
 dotspacemacs_configuration_layers:
-  - syntax-checking
-  - lsp
-  - |-
-    (common-lisp :variables
-                 common-lisp-backend 'sly
-                 inferior-lisp-program "sbcl")
-  - (rust :variables rust-backend 'lsp)
-  - toml
   - |-
     ;; ----------------------------------------------------------------
     ;; Example of useful layers you may want to use right away.
     ;; Uncomment some layer names and press `SPC f e R' (Vim style) or
     ;; `M-m f e R' (Emacs style) to install them.
     ;; ----------------------------------------------------------------
-    ;; auto-completion
-    ;; better-defaults
-  - emacs-lisp
   - |-
-    ;; git
-  - helm
+    (common-lisp :variables
+                 common-lisp-backend 'sly
+                 inferior-lisp-program "sbcl")
   - |-
-    ;; markdown
-  - multiple-cursors
+    (haskell :variables
+             haskell-completion-backend 'lsp
+             lsp-haskell-process-path-hie "haskell-language-server-wrapper")
   - |-
-    org
+    (rust :variables
+          rust-backend 'lsp)
   - |-
     (shell :variables
+           shell-default-shell 'vterm
            shell-default-height 30
            shell-default-position 'bottom)
-  - |-
-    ;; spell-checking
-    ;; version-control
+  - syntax-checking
+  - lsp
+  - toml
+  - yaml
+  - ansible
+  - auto-completion
+  - emacs-lisp
+  - helm
+  - markdown
+  - multiple-cursors
+  - org
   - treemacs
 dotspacemacs_additional_packages:
   - sly
 #  - rewrap
 dotspacemacs_user_config:
-  - |- 
+  - |-
     (use-package sly
       :defer t
       :config
       (setq sly-net-coding-system 'utf-8-unix))
+  - |-
+    ;; Setup ansible-vault-password-file dynamically
+    (defun local-ansible-set-vault-password ()
+      "Dynamically set ansible vault password based on the current Projectile project."
+      (let* ((global-default "~/.ansible_global_vault_pass")
+            ;; Check if we are inside an active Projectile project
+            (project-root (and (fboundp 'projectile-project-root)
+                               (projectile-project-root)))
+            ;; Look for a password file named '.vault_pass' at the root of the project
+            (project-specific-pass (when project-root
+                                     (concat project-root ".vault_pass"))))
+        (if (and project-specific-pass (file-exists-p project-specific-pass))
+            (setq-local ansible-vault-password-file project-specific-pass)
+          (setq-local ansible-vault-password-file global-default))))
+     
+    ;; Ensure proper conventional ansible vault file is detected
+    (add-hook 'yaml-mode-hook #'local-ansible-set-vault-password)
+    
+    ;; Run this check every time a YAML or Ansible file is opened
+    (add-hook 'yaml-mode-hook 'ansible)
+
   # - |
   #   (use-package rewrap
   #     :defer t
   #     :init
   #     (add-hook 'text-mode-hook 'turn-on-rewrap-mode))
   - |-
-    (defun my-scheduled-package-refresh ()
+    (defun local-scheduled-package-refresh ()
       "Runs package refresh only if it has been more than 7 days since the last run."
       (interactive)
       (let* ((cache-file (expand-file-name "elpa-refresh-timestamp" user-emacs-directory))
@@ -77,5 +99,5 @@ dotspacemacs_user_config:
   - |-
 
     ;; Run the schedule automatically in the background after Emacs is idle for 5 minutes
-    (run-with-idle-timer 300 t #'my-scheduled-package-refresh)
+    (run-with-idle-timer 300 t #'local-scheduled-package-refresh)
 

@@ -158,8 +158,19 @@ update_env_file() {
 }
 
 main() {
+  local \
+    shell_config
+  local -a \
+    shell_config_files \
+    required_apps
 
-  ensure_apps "curl" "sha256sum" "xq"
+  required_apps=(
+    curl
+    sha256sum
+    xq
+  )
+
+  ensure_apps "${required_apps[@]}"
 
   pushd "${PWD}" >/dev/null || {
     echo "FATAL: failed to push ${PWD} onto shell stack"
@@ -182,7 +193,14 @@ main() {
 
   gen_pkg_config "${LUA_PREFIX}" "${LUA_RELEASE}" "lua"
 
-  update_env_file "${SHELL_CONFIG_FILE}" "PKG_CONFIG_PATH" "${LUA_PREFIX}/lib/pkgconfig"
+  shell_config_files=(
+    "${SHELL_CONFIG_FILE}"
+    "${HOME}/.bashrc"
+  )
+  for shell_config in "${shell_config_files[@]}"; do
+    [[ -f "${shell_config}" ]] || continue
+    update_env_file "${shell_config}" "PKG_CONFIG_PATH" "${LUA_PREFIX}/lib/pkgconfig"
+  done
 
 }
 

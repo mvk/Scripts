@@ -44,11 +44,11 @@ QDBUS_NS="${QDBUS_NS:-"org.kde.KWin"}"
 SETUP_PACKAGES_SKIP="${SETUP_PACKAGES_SKIP:-"1"}"
 SETUP_EMACS_CFG_DIR_SKIP="${SETUP_EMACS_CFG_DIR_SKIP:-"1"}"
 SETUP_QUICKLISP_SKIP="${SETUP_QUICKLISP_SKIP:-"1"}"
-SETUP_EMACS_CFG_FILE_SKIP="${SETUP_EMACS_CFG_FILE_SKIP:-"1"}"
+SETUP_EMACS_CFG_FILE_SKIP="${SETUP_EMACS_CFG_FILE_SKIP:-"0"}"
 SETUP_SBCLRC_FILE_SKIP="${SETUP_SBCLRC_FILE_SKIP:-"1"}"
 SETUP_EMACS_SVC_SKIP="${SETUP_EMACS_SVC_SKIP:-"1"}"
-SETUP_DESKTOP_FILE_SKIP="${SETUP_DESKTOP_FILE_SKIP:-"0"}"
-SETUP_PLASMA_HOOKS_SKIP="${SETUP_PLASMA_HOOKS_SKIP:-"0"}"
+SETUP_DESKTOP_FILE_SKIP="${SETUP_DESKTOP_FILE_SKIP:-"1"}"
+SETUP_PLASMA_HOOKS_SKIP="${SETUP_PLASMA_HOOKS_SKIP:-"1"}"
 declare -A DISTRO_ID_PKG_MGR_MAP
 
 DISTRO_ID_PKG_MGR_MAP['Fedora']="dnf"
@@ -549,7 +549,7 @@ setup_plasma_hooks() {
 main() {
   local \
     distro_id \
-    kcfg_group \
+    kconfig_group \
     rc
   local -a \
     params
@@ -561,29 +561,57 @@ main() {
   }
   setup_packages "${distro_id}"
   rc=$?
-  params=("${EMACS_CFG_REPO}" "${EMACS_CFG_DIR}")
+  params=(
+    "${EMACS_CFG_REPO}"
+    "${EMACS_CFG_DIR}"
+  )
   setup_emacs_cfg_dir "${params[@]}"
   rc=$?
-  params=("${QL_URL}" "${QL_INIT_FILE}")
+  params=(
+    "${QL_URL}"
+    "${QL_INIT_FILE}"
+  )
   setup_quicklisp "${params[@]}"
   rc=$?
-  para
-  params=("${SBCL_CFG_FILE}" "${SBCL_CFG_TPL}" "${SBCL_CFG_CTX}")
+  params=(
+    "${SBCL_CFG_FILE}"
+    "${SBCL_CFG_TPL}"
+    "${SBCL_CFG_CTX}"
+  )
   setup_sbclrc_file "${params[@]}"
   rc=$?
-  params=("${EMACS_CFG_FILE}" "${EMACS_CFG_TPL}" "${EMACS_CFG_CTX}")
+  params=(
+    "${EMACS_CFG_FILE}"
+    "${EMACS_CFG_TPL}"
+    "${EMACS_CFG_CTX}"
+  )
   setup_emacs_cfg_file "${params[@]}"
   rc=$?
-  params=("${EMACS_SVC_FILE}" "${EMACS_SVC_TPL}" "${EMACS_SVC_CTX}" "${SYSTEMD_INSTALL_ROOT}")
+  params=(
+    "${EMACS_SVC_FILE}"
+    "${EMACS_SVC_TPL}"
+    "${EMACS_SVC_CTX}"
+    "${SYSTEMD_INSTALL_ROOT}"
+  )
   setup_emacs_svc "${params[@]}"
   rc=$?
-  params=("${DESKTOP_FILE}" "${DESKTOP_TPL}" "${DESKTOP_CTX}")
+  params=(
+    "${DESKTOP_FILE}"
+    "${DESKTOP_TPL}"
+    "${DESKTOP_CTX}"
+  )
   setup_desktop_file "${params[@]}"
   rc=$?
-  kcfg_group="${DESKTOP_FILE##/*}"
-  kcfg_group="${kcfg_group%.*}"
-  log.debug "Calculated kconfig group: '${kcfg_group}'"
-  params=("${PLASMA_SHCSRC}" "${kcfg_group}" "${PLASMA_KEY}" "${PLASMA_KEY_VAL}" "${QDBUS_NS}")
+  kconfig_group="${DESKTOP_FILE##*/}"
+  kconfig_group="${kconfig_group%.*}"
+  log.debug "Calculated kconfig group: '${kconfig_group}'"
+  params=(
+    "${PLASMA_SHCSRC}"
+    "${kconfig_group}"
+    "${PLASMA_KEY}"
+    "${PLASMA_KEY_VAL}"
+    "${QDBUS_NS}"
+  )
   params+=(
     "plasma-kglobalaccel.service"
   )

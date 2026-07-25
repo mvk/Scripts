@@ -48,6 +48,11 @@ dotspacemacs_user_config:
       :config
       (setq sly-net-coding-system 'utf-8-unix))
   - |-
+    (defvar user-home-venvs-root "~/.local/pythons"
+      "Root folder for default virtual environments.")
+    (defvar ansible-default-venv "ansible-default"
+      "The default virtual environment folder name for Ansible.")
+  - |-
     ;; Setup ansible-vault-password-file dynamically
     (defun local-ansible-set-vault-password ()
       "Dynamically set ansible vault password based on the current Projectile project."
@@ -62,11 +67,38 @@ dotspacemacs_user_config:
             (setq-local ansible-vault-password-file project-specific-pass)
           (setq-local ansible-vault-password-file global-default))))
      
-    ;; Ensure proper conventional ansible vault file is detected
-    (add-hook 'yaml-mode-hook #'local-ansible-set-vault-password)
+    (defun local-ansible-set-virtualenv-path ()
+      "Prioritizes the project root .venv if it exists, or falls back to a global default."
+      (let* (;; Construct the value of global-default-venv
+              (global-default-venv (expand-file-name ansible-default-venv user-home-venvs-root))
+              ;; Resolve the active Projectile root path
+              (project-root (and (fboundp 'projectile-project-root)
+                                (projectile-project-root)))
+              ;; Look for a local .venv folder at that project root
+              (local-venv (when project-root
+                            (concat project-root ".venv")))
+              ;; Determine the final choice: Local if found, otherwise Global
+              (chosen-venv (if (and local-venv (file-directory-p local-venv))
+                              local-venv
+                            global-default-venv))
+              ;; Build the executable binary directory path string
+              (venv-bin (concat (file-name-as-directory chosen-venv) "bin")))
+
+        ;; Check if the resolved bin directory actually exists before assigning
+        (when (file-directory-p venv-bin)
+          ;; 1. Update buffer-local exec-path so Emacs subprocesses see it first
+          (setq-local exec-path (cons venv-bin exec-path))
+          ;; 2. Update buffer-local PATH string for external linters & language servers
+          (setenv "PATH" (concat venv-bin ":" (getenv "PATH"))))))
     
-    ;; Run this check every time a YAML or Ansible file is opened
-    (add-hook 'yaml-mode-hook 'ansible)
+    (defun local-yaml-ansible-setup ()
+      "Bundled initialization steps for YAML and Ansible files."
+      (local-ansible-set-vault-password)    ; Step A: Determine vault keys
+      (local-ansible-set-virtualenv-path)   ; Step B: Shift PATH execution to .venv
+      (ansible))                            ; Step C: Start the minor mode
+
+    ;; Assign the entire sequence into a single clean hook expression
+    (add-hook 'yaml-mode-hook #'local-ansible-setup)
 
   # - |
   #   (use-package rewrap

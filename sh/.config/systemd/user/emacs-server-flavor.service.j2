@@ -7,10 +7,12 @@ Type=notify
 # This safe buffer ensures environment variables are populated regardless of desktop
 ExecStartPre=/usr/bin/sleep {{ emacs_start_delay_sec | default(4) }}
 ExecStart={{ emacs_binary | default("/usr/bin/emacs") }} \
-  --init-directory {{ emacs_init_directory }} \
-  --server-name {{ emacs_flavor | lower }} \
-  --fg-daemon
-ExecStop={{emacsclient_binary | default("/usr/bin/emacsclient") }} -s {{ emacs_flavor | lower }} --eval "(kill-emacs)"
+{{ "--init-directory " ~ emacs_init_directory | indent(4, true) }} \
+{{ "--server-name " ~ (emacs_flavor | lower ) | indent(4, true) }} \
+{{ "--fg-daemon" | indent(4, true) }}
+ExecStop={{ emacsclient_binary | default("/usr/bin/emacsclient") }} \
+{{ "-s " ~ (emacs_flavor | lower) | indent(4, true) }} -c \
+{{ "--eval (kill-emacs)" | indent(4, true) }}
 Restart=on-failure
 
 [Install]

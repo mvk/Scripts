@@ -11,12 +11,16 @@ xkb_symbols "basic" {
     key <AE06> { [ 6,  U1091B ] }; // Pressing Shift+6 outputs Num 100 (𐤙)
 
     // --- Letter Row 1 (QWERTY top row equivalents) ---
-    key <AD01> { [ U10912 ] }; // ק -> Qoph (𐤒)
-    key <AD02> { [ U10913 ] }; // ר -> Resh (𐤓)
-    key <AD03> { [ U10900 ] }; // א -> Aleph (𐤀)
-    key <AD04> { [ U10908 ] }; // ט -> Tet (𐤈)
-    key <AD05> { [ U10905 ] }; // ו -> Waw (𐤅)
-    key <AD08> { [ U10910 ] }; // פ -> Pe (𐤐)
+    key <AD01> { [ slash  ] }; // /
+    key <AD02> { [ U1091F ] }; // ' -> Word Separator (𐤟)
+    key <AD03> { [ U10912 ] }; // ק -> Qoph (𐤒)
+    key <AD04> { [ U10913 ] }; // ר -> Resh (𐤓)
+    key <AD05> { [ U10900 ] }; // א -> Aleph (𐤀)
+    key <AD06> { [ U10908 ] }; // ט -> Tet (𐤈)
+    key <AD07> { [ U10905 ] }; // ו -> Waw (𐤅)
+    key <AD08> { [ U1090D ] }; // ן -> Nun (𐤍)
+    key <AD09> { [ U1090C ] }; // ם -> Mem (𐤌)
+    key <AD10> { [ U10910 ] }; // פ -> Pe (𐤐)
 
     // --- Letter Row 2 (QWERTY home row equivalents) ---
     key <AC01> { [ U10914 ] }; // ש -> Shin (𐤔)
@@ -27,6 +31,8 @@ xkb_symbols "basic" {
     key <AC06> { [ U10909 ] }; // י -> Yod (𐤉)
     key <AC07> { [ U10907 ] }; // ח -> Het (𐤇)
     key <AC08> { [ U1090B ] }; // ל -> Lamed (𐤋)
+    key <AC09> { [ U1090A ] }; // ך -> Kaph (𐤊)
+    key <AC10> { [ U10910 ] }; // פ -> Pe (𐤐)
 
     // --- Letter Row 3 (QWERTY bottom row equivalents) ---
     key <AB01> { [ U10906 ] }; // ז -> Zayin (𐤆)
@@ -37,6 +43,8 @@ xkb_symbols "basic" {
     key <AB06> { [ U1090C ] }; // מ -> Mem (𐤌)
     key <AB07> { [ U10911 ] }; // צ -> Tsadi (𐤑)
     key <AB08> { [ U10915 ] }; // ת -> Taw (𐤕)
+    key <AB09> { [ U10911 ] }; // ץ -> Tsadi (𐤑)
+    key <AB10> { [ period ] }; // .
 
     // --- Spacebar Shift Variant: Word Separator ---
     key <SPCE> { [ space,      U1091F ] }; // Space -> Shift: Word Separator Dot (𐤟)

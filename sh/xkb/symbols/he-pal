@@ -1,0 +1,43 @@
+default partial alphanumeric_keys
+xkb_symbols "basic" {
+    name[Group1]= "Hebrew (Paleo)";
+
+    // --- Top Row: Numbers & Shift Numerals ---
+    key <AE01> { [ 1,  U10916 ] }; // Pressing Shift+1 outputs Num 1 (𐤖)
+    key <AE02> { [ 2,  U10918 ] }; // Pressing Shift+2 outputs Num 2 (𐤚)
+    key <AE03> { [ 3,  U10919 ] }; // Pressing Shift+3 outputs Num 3 (𐤛)
+    key <AE04> { [ 4,  U10917 ] }; // Pressing Shift+4 outputs Num 10 (𐤗)
+    key <AE05> { [ 5,  U1091A ] }; // Pressing Shift+5 outputs Num 20 (𐤘)
+    key <AE06> { [ 6,  U1091B ] }; // Pressing Shift+6 outputs Num 100 (𐤙)
+
+    // --- Letter Row 1 (QWERTY top row equivalents) ---
+    key <AD01> { [ U10912 ] }; // ק -> Qoph (𐤒)
+    key <AD02> { [ U10913 ] }; // ר -> Resh (𐤓)
+    key <AD03> { [ U10900 ] }; // א -> Aleph (𐤀)
+    key <AD04> { [ U10908 ] }; // ט -> Tet (𐤈)
+    key <AD05> { [ U10905 ] }; // ו -> Waw (𐤅)
+    key <AD08> { [ U10910 ] }; // פ -> Pe (𐤐)
+
+    // --- Letter Row 2 (QWERTY home row equivalents) ---
+    key <AC01> { [ U10914 ] }; // ש -> Shin (𐤔)
+    key <AC02> { [ U10903 ] }; // ד -> Dalet (𐤃)
+    key <AC03> { [ U10902 ] }; // ג -> Gimel (𐤂)
+    key <AC04> { [ U1090A ] }; // כ -> Kaph (𐤊)
+    key <AC05> { [ U1090F ] }; // ע -> Ayin (𐤏)
+    key <AC06> { [ U10909 ] }; // י -> Yod (𐤉)
+    key <AC07> { [ U10907 ] }; // ח -> Het (𐤇)
+    key <AC08> { [ U1090B ] }; // ל -> Lamed (𐤋)
+
+    // --- Letter Row 3 (QWERTY bottom row equivalents) ---
+    key <AB01> { [ U10906 ] }; // ז -> Zayin (𐤆)
+    key <AB02> { [ U1090E ] }; // ס -> Samekh (𐤎)
+    key <AB03> { [ U10901 ] }; // ב -> Bet (𐤁)
+    key <AB04> { [ U10904 ] }; // ה -> He (𐤄)
+    key <AB05> { [ U1090D ] }; // נ -> Nun (𐤍)
+    key <AB06> { [ U1090C ] }; // מ -> Mem (𐤌)
+    key <AB07> { [ U10911 ] }; // צ -> Tsadi (𐤑)
+    key <AB08> { [ U10915 ] }; // ת -> Taw (𐤕)
+
+    // --- Spacebar Shift Variant: Word Separator ---
+    key <SPCE> { [ space,      U1091F ] }; // Space -> Shift: Word Separator Dot (𐤟)
+};

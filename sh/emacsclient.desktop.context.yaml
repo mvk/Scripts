@@ -1,0 +1,10 @@
+---
+flavor: spacemacs
+executable: /usr/bin/emacsclient
+icon: emacs
+nodisplay: false
+categories:
+  - Development
+  - TextEditor
+  - Utility
+

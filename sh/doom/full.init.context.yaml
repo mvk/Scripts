@@ -1,0 +1,397 @@
+---
+
+# Column (0-indexed) where the ";;" comment starts on each module line,
+# 8 (indent) + width of the widest module entry + 1 space. Widest entry
+# today is "(:if (featurep :system 'macos) macos)" (37 chars) -> 8+37+1=46.
+# Update by hand if a longer module entry is ever added.
+comment_start_column: 46
+
+doom_init:
+  input:
+    # - name: bidi
+    #   comment: (tfel ot) thgir etirw uoy gnipleh
+    # - name: chinese
+    # - name: japanese
+    # - name: layout
+    #   comment: auie,ctsrnm is the superior home row
+
+  completion:
+    # - name: company
+    #   comment: the ultimate code completion backend
+    - name: corfu
+      extras:
+        - orderless
+      comment: complete with cap(f), cape and a flying feather!
+    # - name: helm
+    #   comment: the *other* search engine for love and life
+    # - name: ido
+    #   comment: the other *other* search engine...
+    # - name: ivy
+    #   comment: a search engine for love and life
+    - name: vertico
+      comment: the search engine of the future
+
+  ui:
+    # - name: deft
+    #   comment: notational velocity for Emacs
+    - name: doom
+      comment: what makes DOOM look the way it does
+    - name: dashboard
+      comment: a nifty splash screen for Emacs
+    # - name: doom-quit
+    #   comment: DOOM quit-message prompts when you quit Emacs
+    # - name: emoji
+    #   extras:
+    #     - unicode
+    #   comment: "🙂"
+    - name: hl-todo
+      comment: highlight TODO/FIXME/NOTE/DEPRECATED/HACK/REVIEW
+    # - name: indent-guides
+    #   comment: highlighted indent columns
+    # - name: ligatures
+    #   comment: ligatures and symbols to make your code pretty again
+    # - name: minimap
+    #   comment: show a map of the code on the side
+    - name: modeline
+      comment: snazzy, Atom-inspired modeline, plus API
+    # - name: nav-flash
+    #   comment: blink cursor line after big motions
+    # - name: neotree
+    #   comment: a project drawer, like NERDTree for vim
+    - name: ophints
+      comment: highlight the region an operation acts on
+    - name: popup
+      extras:
+        - defaults
+      comment: tame sudden yet inevitable temporary windows
+    # - name: smooth-scroll
+    #   comment: So smooth you won't believe it's not butter
+    # - name: tabs
+    #   comment: a tab bar for Emacs
+    - name: treemacs
+      comment: a project drawer, like neotree but cooler
+    # - name: unicode
+    #   comment: extended unicode support for various languages
+    - name: vc-gutter
+      extras:
+        - pretty
+      comment: vcs diff in the fringe
+    - name: vi-tilde-fringe
+      comment: fringe tildes to mark beyond EOB
+    # - name: window-select
+    #   comment: visually switch windows
+    - name: workspaces
+      comment: tab emulation, persistence & separate workspaces
+    # - name: zen
+    #   comment: distraction-free coding or writing
+
+  editor:
+    # - name: evil
+    #   extras:
+    #     - everywhere
+    #   comment: come to the dark side, we have cookies
+    - name: file-templates
+      comment: auto-snippets for empty files
+    - name: fold
+      comment: (nigh) universal code folding
+    # - name: format
+    #   extras:
+    #     - onsave
+    #   comment: automated prettiness
+    # - name: god
+    #   comment: run Emacs commands without modifier keys
+    # - name: lispy
+    #   comment: vim for lisp, for people who don't like vim
+    - name: multiple-cursors
+      comment: editing in many places at once
+    # - name: objed
+    #   comment: text object editing for the innocent
+    # - name: parinfer
+    #   comment: turn lisp into python, sort of
+    # - name: rotate-text
+    #   comment: cycle region at point between text candidates
+    - name: snippets
+      comment: my elves. They type so I don't have to
+    - name: whitespace
+      extras:
+        - guess
+        - trim
+      comment: a butler for your whitespace
+    # - name: word-wrap
+    #   comment: soft wrapping with language-aware indent
+
+  emacs:
+    - name: dired
+      comment: making dired pretty [functional]
+    - name: electric
+      comment: smarter, keyword-based electric-indent
+    # - name: eww
+    #   comment: the internet is gross
+    # - name: ibuffer
+    #   comment: interactive buffer management
+    - name: tramp
+      comment: remote files at your arthritic fingertips
+    - name: undo
+      comment: persistent, smarter undo for your inevitable mistakes
+    - name: vc
+      comment: version-control and Emacs, sitting in a tree
+
+  term:
+    # - name: eshell
+    #   comment: the elisp shell that works everywhere
+    - name: shell
+      comment: simple shell REPL for Emacs
+    # - name: term
+    #   comment: basic terminal emulator for Emacs
+    - name: vterm
+      comment: almost the best terminal emulation in Emacs
+    # - name: ghostel
+    #   comment: the best terminal emulation in Emacs
+
+  checkers:
+    - name: syntax
+      comment: tasing you for every semicolon you forget
+    # - name: spell
+    #   extras:
+    #     - flyspell
+    #   comment: tasing you for misspelling mispelling
+    # - name: grammar
+    #   comment: tasing grammar mistake every you make
+
+  tools:
+    - name: ansible
+    # - name: biblio
+    #   comment: Writes a PhD for you (citation needed)
+    # - name: collab
+    #   comment: buffers with friends
+    - name: debugger
+      extras:
+        - lsp
+      comment: stepping through code, to help you add bugs
+    - name: direnv
+    - name: docker
+    # - name: editorconfig
+    #   comment: let someone else argue about tabs vs spaces
+    # - name: ein
+    #   comment: tame Jupyter notebooks with emacs
+    - name: eval
+      extras:
+        - overlay
+      comment: run code, run (also, repls)
+    - name: lookup
+      comment: navigate your code and its documentation
+    # - name: llm
+    #   comment: when I said you needed friends, I didn't mean...
+    # - name: lsp
+    #   extras:
+    #     - eglot
+    #   comment: M-x vscode
+    - name: magit
+      comment: a git porcelain for Emacs
+    - name: make
+      comment: run make tasks from Emacs
+    # - name: pass
+    #   comment: password manager for nerds
+    # - name: pdf
+    #   comment: pdf enhancements
+    - name: terraform
+      comment: infrastructure as code
+    # - name: tmux
+    #   comment: an API for interacting with tmux
+    # - name: tree-sitter
+    #   comment: syntax and parsing, sitting in a tree...
+    # - name: upload
+    #   comment: map local to remote projects via ssh/ftp
+
+  os: []
+    - name: macos
+      condition: "if (featurep :system 'macos)"
+      comment:  improve compatibility with macOS
+    - name: tty
+      comment: improve the terminal Emacs experience
+
+  lang:
+    # - name: ada
+    #   comment: In strong typing we (blindly) trust
+    # - name: agda
+    #   extras:
+    #     - local
+    #   comment: types of types of types of types...
+    # - name: beancount
+    #   comment: mind the GAAP
+    - name: cc
+      extras:
+        - lsp
+      comment: C > C++ == 1
+    # - name: clojure
+    #   comment: java with a lisp
+    - name: common-lisp
+      comment: if you've seen one lisp, you've seen them all
+    # - name: coq
+    #   comment: proofs-as-programs
+    # - name: crystal
+    #   comment: ruby at the speed of c
+    # - name: csharp
+    #   comment: unity, .NET, and mono shenanigans
+    # - name: data
+    #   comment: config/data formats
+    # - name: dart
+    #   extras:
+    #     - flutter
+    #   comment: paint ui and not much else
+    # - name: dhall
+    # - name: elixir
+    #   comment: erlang done right
+    # - name: elm
+    #   comment: care for a cup of TEA?
+    - name: emacs-lisp
+      comment: drown in parentheses
+    # - name: erlang
+    #   comment: an elegant language for a more civilized age
+    # - name: ess
+    #   comment: emacs speaks statistics
+    # - name : factor
+    # - name: faust
+    #   comment: dsp, but you get to keep your soul
+    # - name: fortran
+    #   comment: in FORTRAN, GOD is REAL (unless declared INTEGER)
+    # - name: fsharp
+    #   comment: ML stands for Microsoft's Language
+    # - name: fstar
+    #   comment: (dependent) types and (monadic) effects and Z3
+    # - name: gdscript
+    #   comment: the language you waited for
+    - name: go
+      extras:
+        - lsp
+      comment: the hipster dialect
+    # - name: graphql
+    #   extras:
+    #     lsp
+    #   comment: Give queries a REST
+    - name: haskell
+      extras:
+        - lsp
+      comment: a language that's lazier than I am
+    # - name: hy
+    #   comment: readability of scheme w/ speed of python
+    # - name: idris
+    #   comment: a language you can depend on
+    # - name: json
+    #   comment: At least it ain't XML
+    # - name: janet
+    #   comment: Fun fact: Janet is me!
+    # - name: java
+    #   extras:
+    #     - lsp
+    #   comment: the poster child for carpal tunnel syndrome
+    # - name: javascript
+    #   comment: all(hope(abandon(ye(who(enter(here))))))
+    # - name: julia
+    #   comment: a better, faster MATLAB
+    - name: kotlin
+      comment: a better, slicker Java(Script)
+    - name: latex
+      comment: writing papers in Emacs has never been so fun
+    # - name: lean
+    #   comment: for folks with too much to prove
+    # - name: ledger
+    #   comment: be audit you can be
+    - name: lua
+      comment: one-based indices? one-based indices
+    - name: markdown
+      comment: writing docs for people to ignore
+    # - name: nim
+    #   comment: python + lisp at the speed of c
+    # - name: nix
+    #   comment: I hereby declare "nix geht mehr!"
+    # - name: ocaml
+    #   comment: an objective camel
+    # - name: odin
+    #   comment: C, minus its footguns
+    - name: org
+      comment: organize your plain life in plain text
+    # - name: php
+    #   comment: perl's insecure younger brother
+    # - name: plantuml
+    #   comment: diagrams for confusing people more
+    - name: graphviz
+      comment: diagrams for confusing yourself even more
+    # - name: purescript
+    #   comment: javascript, but functional
+    - name: python
+      comment: beautiful is better than ugly
+    # - name: qt
+    #   comment: the 'cutest' gui framework ever
+    # - name: racket
+    #   comment: a DSL for DSLs
+    # - name: raku
+    #   comment: the artist formerly known as perl6
+    # - name: rest
+    #   comment: Emacs as a REST client
+    # - name: rst
+    #   comment: ReST in peace
+    # - name: ruby
+    #   extras:
+    #     - rails
+    #   comment: 1.step {|i| p "Ruby is #{i.even? ? 'love' : 'life'}"}
+    - name: rust
+      extras:
+        - lsp
+        - tree-sitter
+      comment: Fe2O3.unwrap().unwrap().unwrap().unwrap()
+    # - name: scad
+    #   comment: trust the preview, regret the render
+    # - name: scala
+    #   comment: java, but good
+    # - name: scheme
+    #   extras:
+    #     - guile
+    #   comment: a fully conniving family of lisps
+    - name: sh
+      extras:
+        - lsp
+        - tree-sitter
+      comment: she sells {ba,z,fi}sh shells on the C xor
+    # - name: sml
+    # - name: solidity
+    #   comment: do you need a blockchain? No.
+    # - name: swift
+    #   comment: who asked for emoji variables?
+    # - name: terra
+    #   comment: Earth and Moon in alignment for performance.
+    # - name: web
+    #   comment: the tubes
+    - name: yaml
+      comment: JSON, but readable
+    # - name: zig
+    #   comment: C, but simpler
+
+  email:
+    - name: mu4e
+      extras:
+        - org
+    # - name: notmuch
+    # - name: wanderlust
+    #   extras:
+    #     - gmail
+
+  app:
+    # - name: calendar
+    # - name: emms
+    # - name: everywhere
+    #   comment: *leave* Emacs!? You must be joking
+    # - name: irc
+    #   comment: how neckbeards socialize
+    # - name: rss
+    #   extras:
+    #     - org
+    #   comment: emacs as an RSS reader
+
+  config:
+    # - name: literate
+    - name: default
+      extras:
+        - bindings
+        - smartparens
+

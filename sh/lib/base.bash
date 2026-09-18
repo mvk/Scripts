@@ -4,6 +4,20 @@ SCRIPT_DEBUG="${SCRIPT_DEBUG:-"0"}"
 DATE_OPTS="${DATE_OPTS:-"--rfc-3339=ns"}"
 EXIT_FAILURE="${EXIT_FAILURE:-1}"
 DO_NOT_EXIT="${DO_NOT_EXIT:-"0"}"
+CURR_OS="$(uname -s || true)"
+
+case "${CURR_OS}" in
+"Linux")
+  DATE="$(command -v date || true)"
+  ;;
+"Darwin")
+  DATE="$(command -v gdate || true)"
+  ;;
+*)
+  echo -e "FATAL: unsupported Operating System: ${CURR_OS}" >&2
+  exit 1
+  ;;
+esac
 
 log.msg() {
   local \
@@ -22,7 +36,7 @@ log.msg() {
     return 0
   fi
   rc=0
-  echo -e "$(date "${DATE_OPTS}" || true) - ${level} - ${msg[*]}"
+  echo -e "$("${DATE}" "${DATE_OPTS}" || true) - ${level} - ${msg[*]}"
   # shellcheck disable=SC2320
   rc=$?
   return "${rc}"

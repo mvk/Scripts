@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>{{ emacs_plist_label }}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <!-- Adjust path to your Emacs binary -->
+        <string>{{ emacs_binary | default("/Applications/Emacs.app/Contents/MacOS/Emacs") }}</string>
+        <string>--init-directory={{ emacs_init_directory }}</string>
+        <string>--fg-daemon={{ emacs_flavor  }}</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>{{ emacs_stdout_log_file }}</string>
+    <key>StandardErrorPath</key>
+    <string>{{ emacs_stderr_log_file }}</string>
+</dict>
+</plist>

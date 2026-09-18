@@ -1,0 +1,14 @@
+---
+emacs_start_delay_sec: 3
+emacs_init_directory: ~/.emacs.d
+emacs_flavor: # [doom|spacemacs]
+## Linux:
+# emacs_binary: /usr/bin/emacs
+# emacsclient_binary: /usr/bin/emacsclient
+
+## Darwin
+# emacs_binary: /Applications/Emacs.app/Contents/MacOS/Emacs
+# emacsclient_binary: /Applications/Emacs.app/Contents/MacOS/bin/emacsclient
+# emacs_plist_label: gnu.emacs-server-doom.daemon
+# emacs_stdout_log_file: /tmp/emacs-server-doom.daemon.stdout.log
+# emacs_stderr_log_file: /tmp/emacs-server-doom.daemon.stderr.log

@@ -26,9 +26,20 @@ fname=.env."${SCRIPT_NAME%%.*}".bash
 [[ -r "${fname}" ]] && source "${fname}"
 
 EMACS_FLAVOR="${EMACS_FLAVOR:-"spacemacs"}"
-EMACS_SVC_FILE="${EMACS_SVC_FILE:-".config/systemd/user/emacs-server-${EMACS_FLAVOR}.service"}"
-EMACS_SVC_TPL="${EMACS_SVC_TPL:-"${PWD}/.config/systemd/user/emacs-server-flavor.service.j2"}"
-EMACS_SVC_CTX="${EMACS_SVC_CTX:-"${PWD}/emacs-server-flavor.service.context.yaml"}"
+
+if command -v systemctl >/dev/null; then
+  EMACS_SVC_FILE="${EMACS_SVC_FILE:-".config/systemd/user/emacs-server-${EMACS_FLAVOR}.service"}"
+  EMACS_SVC_TPL="${EMACS_SVC_TPL:-"${PWD}/.config/systemd/user/emacs-server-flavor.service.j2"}"
+  EMACS_SVC_CTX="${EMACS_SVC_CTX:-"${PWD}/emacs-server-flavor.service.context.yaml"}"
+  log.info "Setup EMACS_SVC_* variables for systemd"
+elif command -v launchctl >/dev/null; then
+  EMACS_SVC_FILE="${HOME}/Library/LaunchAgents/gnu.emacs-server-${EMACS_FLAVOR}.daemon.plist"
+  EMACS_SVC_TPL="${PWD}/Library/LaunchAgents/gnu.emacs-server-flavor.daemon.plist.j2"
+  EMACS_SVC_CTX="${PWD}/emacs-server-flavor.service.context.yaml"
+  log.info "Setup EMACS_SVC_* variables for launchctl"
+else
+  die 1 "Unsupported system: neither systemd nor launchtl"
+fi
 
 SYSTEMD_INSTALL_ROOT="${SYSTEMD_INSTALL_ROOT:-"${HOME}"}"
 QL_URL="${QL_URL:-"https://beta.quicklisp.org/quicklisp.lisp"}"
@@ -48,20 +59,21 @@ PLASMA_KEY="${PLASMA_KEY:-"_launch"}"
 PLASMA_KEY_VAL="${PLASMA_KEY_VAL:-"Ctrl+Meta+E,none,Emacs Client CLI Bound (${EMACS_FLAVOR})"}"
 QDBUS_NS="${QDBUS_NS:-"org.kde.KWin"}"
 
-SETUP_PACKAGES_SKIP="${SETUP_PACKAGES_SKIP:-"1"}"
-SETUP_EMACS_CFG_DIR_SKIP="${SETUP_EMACS_CFG_DIR_SKIP:-"1"}"
-SETUP_QUICKLISP_SKIP="${SETUP_QUICKLISP_SKIP:-"1"}"
+SETUP_PACKAGES_SKIP="${SETUP_PACKAGES_SKIP:-"0"}"
+SETUP_EMACS_CFG_DIR_SKIP="${SETUP_EMACS_CFG_DIR_SKIP:-"0"}"
+SETUP_QUICKLISP_SKIP="${SETUP_QUICKLISP_SKIP:-"0"}"
 SETUP_EMACS_CFG_FILES_SKIP="${SETUP_EMACS_CFG_FILES_SKIP:-"0"}"
-SETUP_SBCLRC_FILE_SKIP="${SETUP_SBCLRC_FILE_SKIP:-"1"}"
-SETUP_EMACS_SVC_SKIP="${SETUP_EMACS_SVC_SKIP:-"1"}"
-SETUP_DESKTOP_FILE_SKIP="${SETUP_DESKTOP_FILE_SKIP:-"1"}"
-SETUP_PLASMA_HOOKS_SKIP="${SETUP_PLASMA_HOOKS_SKIP:-"1"}"
+SETUP_SBCLRC_FILE_SKIP="${SETUP_SBCLRC_FILE_SKIP:-"0"}"
+SETUP_EMACS_SVC_SKIP="${SETUP_EMACS_SVC_SKIP:-"0"}"
+SETUP_DESKTOP_FILE_SKIP="${SETUP_DESKTOP_FILE_SKIP:-"0"}"
+SETUP_PLASMA_HOOKS_SKIP="${SETUP_PLASMA_HOOKS_SKIP:-"0"}"
 declare -A DISTRO_ID_PKG_MGR_MAP
 
 DISTRO_ID_PKG_MGR_MAP['Fedora']="dnf"
 DISTRO_ID_PKG_MGR_MAP['RedHat']="dnf"
 DISTRO_ID_PKG_MGR_MAP['Debian']="apt"
 DISTRO_ID_PKG_MGR_MAP['Ubuntu']="apt"
+DISTRO_ID_PKG_MGR_MAP['Darwin']="brew"
 
 APT_FLAGS=(
   -y
@@ -73,6 +85,7 @@ APT_PACKAGES=(
   g++
   make
   rlwrap
+  ripgrep
 )
 
 DNF_FLAGS=(
@@ -85,6 +98,16 @@ DNF_PACKAGES=(
   make
   rlwrap
   fd-find
+  ripgrep
+)
+
+BREW_PACKAGES=(
+  emacs-app@nightly
+  sbcl
+  make
+  llvm@21
+  rlwrap
+  fd
   ripgrep
 )
 if [[ "${MU4E_ENABLED}" -gt 0 ]]; then
@@ -100,13 +123,33 @@ if [[ "${MU4E_ENABLED}" -gt 0 ]]; then
     gmime30-devel
     xapian-core-devel
   )
+  BREW_PACKAGES+=(
+    git
+    meson
+    gmime
+    xapian
+  )
 fi
 
 log.info "inside the script ${SCRIPT_NAME}"
 
 run.detect_distro_id() {
-  local id
-  id="${1:-"$(lsb_release -s -i || echo "UNSUPPORTED")"}"
+  local \
+    os \
+    id
+  os="$(uname -s || true)"
+  case "${os}" in
+  "Darwin")
+    id="${os}"
+    ;;
+  "Linux")
+    id="${1:-"$(lsb_release -s -i || echo "UNSUPPORTED")"}"
+    ;;
+  *)
+    die 1 "Unsupported OS: ${os}"
+    ;;
+  esac
+
   if ! [[ -v DISTRO_ID_PKG_MGR_MAP["${id}"] ]]; then
     log.fatal "Unsupported distribution id: ${id}"
     die 1 "Supported distribution ids: ${!DISTRO_ID_PKG_MGR_MAP[*]}"
@@ -177,6 +220,22 @@ runner.apt() {
   cmd.run 0 "${run_cmd[@]}"
 }
 
+runner.brew() {
+  local op
+  local -a \
+    packages \
+    run_cmd
+  op="${1?cannot continue without op}"
+  shift 1
+  packages=("${@}")
+  if [[ "${#packages[@]}" -eq 0 ]]; then
+    log.warn "no packages were passed for operation: '${op}'"
+  fi
+  run_cmd=(brew "${op}")
+  run_cmd+=("${packages[@]}")
+  cmd.run 0 "${run_cmd[@]}"
+}
+
 run.pkg() {
   local \
     distro_id \
@@ -188,10 +247,6 @@ run.pkg() {
   log.debug "Detected distro id: ${distro_id}"
   op="${2?cannot continue without op}"
   log.debug "detected operation: '${op}'"
-  if [[ "${#packages[@]}" -eq 0 ]]; then
-    log.warn "no packages were passed for operation: '${op}'"
-  fi
-
   pkg_runner="runner.${DISTRO_ID_PKG_MGR_MAP["${distro_id}"]}"
   case "${DISTRO_ID_PKG_MGR_MAP["${distro_id}"]}" in
   "apt")
@@ -199,6 +254,9 @@ run.pkg() {
     ;;
   "dnf")
     packages=("${DNF_PACKAGES[@]}")
+    ;;
+  "brew")
+    packages=("${BREW_PACKAGES[@]}")
     ;;
   *)
     log.fatal "Unsupported distribution id: ${distro_id}"
@@ -401,6 +459,27 @@ render_templates_from_tuple() {
   done
 }
 
+sync_update_emacs_cfg() {
+  local \
+    emacs_flavor \
+    rc
+  emacs_flavor="${1:-"${EMACS_FLAVOR}"}"
+  case "${emacs_flavor}" in
+  "spacemacs")
+    log.info "Please run: M-x dotspacemacs/sync-configuration-layers"
+    rc=0
+    ;;
+  "doom")
+    doom sync
+    rc=$?
+    ;;
+  *)
+    die 1 "Unsupported emacs flavor: ${EMACS_FLAVOR}"
+    ;;
+  esac
+  return "${rc}"
+}
+
 setup_emacs_cfg_files() {
   local \
     cfg_files_assoc_array
@@ -408,13 +487,8 @@ setup_emacs_cfg_files() {
     rc
   cfg_files_assoc_array="${1?cannot continue without cfg_files_assoc_array}"
   skip_disabled "${FUNCNAME[0]}" || return 0
-  # skip_existing "${FUNCNAME[0]}" "${cfg_file}" || return 0
-  # trg_base="$(basename "${cfg_file}")"
-  # tpl_file="${2:-"${trg_base}.j2"}"           # must exist
-  # ctx_file="${3:-"${trg_base}.context.yaml"}" # is generated
-  # # ensure template exists
-  # render_template "${cfg_file}" "${tpl_file}" "${ctx_file}"
   render_templates_from_tuple "${cfg_files_assoc_array}"
+  sync_update_emacs_cfg "${EMACS_FLAVOR}"
   rc=$?
   return "${rc}"
 }
@@ -440,28 +514,37 @@ setup_sbclrc_file() {
 
 setup_emacs_svc() {
   local \
-    unit_file \
+    service_file \
     tpl_file \
     ctx_file \
-    install_root \
+    os \
     rc
-  unit_file="${1:-".config/systemd/user/emacs-headless.service"}"
-  tpl_file="${2:-"${unit_file}.j2"}"
-  ctx_file="${3:-"${unit_file##*/}.context.yaml"}"
-  install_root="${4:-"${SYSTEMD_INSTALL_ROOT}"}"
+  service_file="${1:-".config/systemd/user/emacs-headless.service"}"
+  tpl_file="${2:-"${service_file}.j2"}"
+  ctx_file="${3:-"${service_file##*/}.context.yaml"}"
   skip_disabled "${FUNCNAME[0]}" || return 0
-  skip_existing "${FUNCNAME[0]}" "${install_root}/${unit_file}" || return 0
-  render_template "${install_root}/${unit_file}" "${tpl_file}" "${ctx_file}"
-  ## enable the service and start it too
-  cmd.run 0 systemctl --user daemon-reload
-  rc=$?
-  log.info "Reloaded systemd for ${unit_file##*/} with rc=${rc}"
-  cmd.run 0 systemctl --user enable "${unit_file##*/}"
-  rc=$?
-  log.info "Enabled systemd unit for ${unit_file##*/} with rc=${rc}"
-  cmd.run 0 systemctl --user start "${unit_file##*/}"
-  log.info "Started systemd unit for ${unit_file##*/} with rc=${rc}"
-  rc=$?
+  # skip_existing "${FUNCNAME[0]}" "${install_root}/${service_file}" || return 0
+  render_template "${service_file}" "${tpl_file}" "${ctx_file}"
+  os="$(uname -s | tr '[:upper:]' '[:lower:]' || true)"
+  case "${os}" in
+  "linux")
+    ## enable the service and start it too
+    cmd.run 0 systemctl --user daemon-reload
+    rc=$?
+    log.info "Reloaded systemd for ${service_file##*/} with rc=${rc}"
+    cmd.run 0 systemctl --user enable "${service_file##*/}"
+    rc=$?
+    log.info "Enabled systemd unit for ${service_file##*/} with rc=${rc}"
+    cmd.run 0 systemctl --user start "${service_file##*/}"
+    log.info "Started systemd unit for ${service_file##*/} with rc=${rc}"
+    rc=$?
+    ;;
+  "darwin")
+    cmd.run 0 launchctl load -w "${service_file}"
+    rc=$?
+    log.info "Started launchctl plist for ${service_file##*/} with rc=${rc}"
+    ;;
+  esac
   return "${rc}"
 }
 
@@ -594,24 +677,22 @@ main() {
     "${EMACS_CFG_DIR}"
   )
   setup_emacs_cfg_dir "${params[@]}"
-  rc=$?
-  params=(
-    "${QL_URL}"
-    "${QL_INIT_FILE}"
-  )
-  setup_quicklisp "${params[@]}"
-  rc=$?
-  params=(
-    "${SBCL_CFG_FILE}"
-    "${SBCL_CFG_TPL}"
-    "${SBCL_CFG_CTX}"
-  )
-  setup_sbclrc_file "${params[@]}"
-  rc=$?
+  # rc=$?
+  # params=(
+  #   "${QL_URL}"
+  #   "${QL_INIT_FILE}"
+  # )
+  # setup_quicklisp "${params[@]}"
+  # rc=$?
+  # params=(
+  #   "${SBCL_CFG_FILE}"
+  #   "${SBCL_CFG_TPL}"
+  #   "${SBCL_CFG_CTX}"
+  # )
+  # setup_sbclrc_file "${params[@]}"
+  # rc=$?
   params=(
     EMACS_CFG_FILES
-    # "${EMACS_CFG_TPL}"
-    # "${EMACS_CFG_CTX}"
   )
   setup_emacs_cfg_files "${params[@]}"
   rc=$?
@@ -619,31 +700,30 @@ main() {
     "${EMACS_SVC_FILE}"
     "${EMACS_SVC_TPL}"
     "${EMACS_SVC_CTX}"
-    "${SYSTEMD_INSTALL_ROOT}"
   )
   setup_emacs_svc "${params[@]}"
-  rc=$?
-  params=(
-    "${DESKTOP_FILE}"
-    "${DESKTOP_TPL}"
-    "${DESKTOP_CTX}"
-  )
-  setup_desktop_file "${params[@]}"
-  rc=$?
-  kconfig_group="${DESKTOP_FILE##*/}"
-  kconfig_group="${kconfig_group%.*}"
-  log.debug "Calculated kconfig group: '${kconfig_group}'"
-  params=(
-    "${PLASMA_SHCSRC}"
-    "${kconfig_group}"
-    "${PLASMA_KEY}"
-    "${PLASMA_KEY_VAL}"
-    "${QDBUS_NS}"
-  )
-  params+=(
-    "plasma-kglobalaccel.service"
-  )
-  setup_plasma_hooks "${params[@]}"
+  # rc=$?
+  # params=(
+  #   "${DESKTOP_FILE}"
+  #   "${DESKTOP_TPL}"
+  #   "${DESKTOP_CTX}"
+  # )
+  # setup_desktop_file "${params[@]}"
+  # rc=$?
+  # kconfig_group="${DESKTOP_FILE##*/}"
+  # kconfig_group="${kconfig_group%.*}"
+  # log.debug "Calculated kconfig group: '${kconfig_group}'"
+  # params=(
+  #   "${PLASMA_SHCSRC}"
+  #   "${kconfig_group}"
+  #   "${PLASMA_KEY}"
+  #   "${PLASMA_KEY_VAL}"
+  #   "${QDBUS_NS}"
+  # )
+  # params+=(
+  #   "plasma-kglobalaccel.service"
+  # )
+  # setup_plasma_hooks "${params[@]}"
   rc=$?
   cmd.run 0 popd &>/dev/null || {
     log.fatal "Failed to get back from '${PWD}'"

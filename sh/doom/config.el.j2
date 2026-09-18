@@ -22,8 +22,8 @@
 ;; See "C-h v doom-font" for documentation and more examples of what they accept:
 (setq {% for font in doom_fonts -%}
 {% if not loop.first %}{{ "\n" }}      {% endif %}doom-{%- if font.name | default("") -%}{{ font.name }}-{%- endif -%}font (font-spec :family "{{font.family}}"
-        {%- if font.size | default(false) -%}:size {{font.size | default(16) }}{%- endif -%} 
-        {%- if font.weight | default(false) -%}:weight '{{ font.weight | default("regular") }}{%- endif -%})
+        {%- if font.size | default(false) %} :size {{font.size | default(16) }}{% endif -%}
+        {%- if font.weight | default(false) %} :weight '{{ font.weight | default("regular") }}{% endif -%})
 {%- endfor -%})
 
 ;; If you or Emacs cannot find your font, use 'M-x describe-font' to look them

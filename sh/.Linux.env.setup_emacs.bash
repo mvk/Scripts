@@ -1,0 +1,4 @@
+## Linux specifics
+
+SETUP_QUICKLISP_SKIP=1
+SETUP_SBCLRC_FILE_SKIP=1

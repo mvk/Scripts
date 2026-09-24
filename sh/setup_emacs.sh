@@ -267,7 +267,9 @@ run.pkg() {
     die 1 "Supported distribution ids: ${!DISTRO_ID_PKG_MGR_MAP[*]}"
     ;;
   esac
-
+  if [[ "${#EXTRA_PACKAGES[@]}" -gt 0 ]]; then
+    packages+=("${EXTRA_PACKAGES[@]}")
+  fi
   "${pkg_runner}" "${op}" "${packages[@]}"
   return 0
 }
@@ -383,11 +385,20 @@ render_template() {
     context \
     context_format
   local -a \
+    extra_flags \
     cmd
   output="${1?cannot continue without output}"
   base="$(basename "${output}" || echo "${output##*/}")"
   template="${2:-"${base}.j2"}"
   context="${3:-"${base}.context.yaml"}"
+  shift 3
+  extra_flags=("${@}")
+  if [[ "${#extra_flags[@]}" -eq 0 ]]; then
+    extra_flags=(
+      --autoescape none
+      --strict
+    )
+  fi
   context_format="${context##*.}"
   [[ -f "${template}" ]] || die 1 "Template is missing: ${template}"
   [[ -f "${context}" ]] || die 1 "Template context is missing: ${context}"
@@ -397,7 +408,7 @@ render_template() {
   # render the template tpl_file using context ctx_file as output trg_file:
   cmd=(minijinja-cli)
   cmd+=(-f "${context_format}")
-  cmd+=(-a none)
+  cmd+=("${extra_flags[@]}")
   cmd+=(-o "${output}")
   cmd+=("${template}" "${context}")
   cmd.run 0 "${cmd[@]}"

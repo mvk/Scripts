@@ -36,20 +36,26 @@ for fname in "${EXTRA_SCRIPTS[@]}"; do
 done
 
 EMACS_FLAVOR="${EMACS_FLAVOR:-"spacemacs"}"
+SVC_MGMT_BIN="${SVC_MGMT_BIN_MAP["${EMACS_OS}"]}"
+if ! command -v "${SVC_MGMT_BIN}" >/dev/null; then
+  die 1 "Missing Service management binary ${SVC_MGMT_BIN} on PATH for OS ${EMACS_OS}"
+fi
 
-if command -v systemctl >/dev/null; then
-  EMACS_SVC_FILE="${EMACS_SVC_FILE:-".config/systemd/user/emacs-server-${EMACS_FLAVOR}.service"}"
+EMACS_SVC_CTX="${EMACS_SVC_CTX:-"${PWD}/${EMACS_OS}.emacs-server-flavor.service.context.yaml"}"
+case "${SVC_MGMT_BIN}" in
+"systemctl")
+  EMACS_SVC_FILE="${EMACS_SVC_FILE:-"${HOME}/.config/systemd/user/emacs-server-${EMACS_FLAVOR}.service"}"
   EMACS_SVC_TPL="${EMACS_SVC_TPL:-"${PWD}/.config/systemd/user/emacs-server-flavor.service.j2"}"
-  EMACS_SVC_CTX="${EMACS_SVC_CTX:-"${PWD}/emacs-server-flavor.service.context.yaml"}"
-  log.info "Setup EMACS_SVC_* variables for systemd"
-elif command -v launchctl >/dev/null; then
+  ;;
+"launchctl")
   EMACS_SVC_FILE="${HOME}/Library/LaunchAgents/gnu.emacs-server-${EMACS_FLAVOR}.daemon.plist"
   EMACS_SVC_TPL="${PWD}/Library/LaunchAgents/gnu.emacs-server-flavor.daemon.plist.j2"
-  EMACS_SVC_CTX="${PWD}/emacs-server-flavor.service.context.yaml"
-  log.info "Setup EMACS_SVC_* variables for launchctl"
-else
-  die 1 "Unsupported system: neither systemd nor launchtl"
-fi
+  ;;
+*)
+  die 1 "Unsupported/customized system. Service management binary ${SVC_MGMT_BIN} is not supported"
+  ;;
+esac
+log.info "Completed setup EMACS_SVC_* variables for ${SVC_MGMT_BIN} on ${EMACS_OS}"
 
 SYSTEMD_INSTALL_ROOT="${SYSTEMD_INSTALL_ROOT:-"${HOME}"}"
 QL_URL="${QL_URL:-"https://beta.quicklisp.org/quicklisp.lisp"}"

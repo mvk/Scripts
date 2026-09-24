@@ -7,7 +7,7 @@ data:
     type: array
     value:
       - {{ emacs_binary }}
-      - --init-directory={{ env.HOME }}/{{ emacs_init_directory }}
+      - --init-directory={{ ENV.HOME }}/{{ emacs_init_directory }}
       - --fg-daemon={{ emacs_flavor }}
   RunAtLoad:
     type: bool

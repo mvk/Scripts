@@ -60,6 +60,12 @@ log.info "Completed setup EMACS_SVC_* variables for ${SVC_MGMT_BIN} on ${EMACS_O
 SYSTEMD_INSTALL_ROOT="${SYSTEMD_INSTALL_ROOT:-"${HOME}"}"
 MU4E_ENABLED="${MU4E_ENABLED:-"0"}"
 
+declare -a MINIJINJA_CLI_FLAGS_DEFAULT
+MINIJINJA_CLI_FLAGS_DEFAULT=(
+  --autoescape none
+  --strict
+  --env
+)
 DESKTOP_FILE="${DESKTOP_FILE:-"${HOME}/.local/share/applications/emacsclient-${EMACS_FLAVOR}.desktop"}"
 DESKTOP_TPL="${DESKTOP_TPL:-"${PWD}/emacsclient.desktop.j2"}"
 DESKTOP_CTX="${DESKTOP_CTX:-"${DESKTOP_FILE//j2/context.yaml}"}"
@@ -394,10 +400,7 @@ render_template() {
   shift 3
   extra_flags=("${@}")
   if [[ "${#extra_flags[@]}" -eq 0 ]]; then
-    extra_flags=(
-      --autoescape none
-      --strict
-    )
+    extra_flags=("${MINIJINJA_CLI_FLAGS_DEFAULT[@]}")
   fi
   context_format="${context##*.}"
   [[ -f "${template}" ]] || die 1 "Template is missing: ${template}"
@@ -537,18 +540,25 @@ svc_templates_setup_Darwin() {
     service_file \
     tpl_file \
     ctx_file \
+    actual_ctx_file \
+    ctx_tpl_file \
     rc
-  service_file="${1:-"${EMACS_SVC_FILE}"}"
-  tpl_file="${2:-"${EMACS_SVC_TPL}"}"
-  ctx_file="${3:-"${service_file##*/}.context.yaml"}"
-  local actual_ctx_file="${service_file}.context.yml"
-  local ctx_tpl_file="${actual_ctx_file}.j2"
+  service_file="${1?cannot continue without service_file}"
+  tpl_file="${2?cannot continue without tpl_file}"
+  ctx_file="${3?cannot continue without ctx_file}"
+  actual_ctx_file="${tpl_file%.*}.context.yaml"
+  ctx_tpl_file="${actual_ctx_file}.j2"
+  log.debug "service_file: ${service_file}"
+  log.debug "tpl_file: ${tpl_file}"
+  log.debug "ctx_file: ${ctx_file}"
+  log.debug "actual_ctx_file: ${actual_ctx_file}"
+  log.debug "ctx_tpl_file: ${ctx_tpl_file}"
   render_template "${actual_ctx_file}" "${ctx_tpl_file}" "${ctx_file}"
   rc=$?
   log.debug "Generated actual context file: ${actual_ctx_file} with rc=${rc}"
   render_template "${service_file}" "${tpl_file}" "${actual_ctx_file}"
   rc=$?
-  log.debug "Generated ${service_file} from ${tpl_file} and ${actual_ctx_file} with rc=${rc}"
+  log.info "Generated: ${service_file} from template: ${tpl_file} and context: ${actual_ctx_file} with rc=${rc}"
   return "${rc}"
 }
 
@@ -607,11 +617,11 @@ setup_emacs_svc() {
   log.debug "os: ${os}"
   skip_disabled "${FUNCNAME[0]}" || return 0
   # skip_existing "${FUNCNAME[0]}" "${install_root}/${service_file}" || return 0
-  exit 0
   svc_templates_setup "${service_file}" "${tpl_file}" "${ctx_file}" "${os}"
   rc=$?
   log.debug "Rendered ${service_file} with rc=${rc}"
   [[ "${rc}" -eq 0 ]] || die 1 "Failed to render ${service_file}"
+  return "${rc}"
   svc_setup "${service_file}" "${os}"
   rc=$?
   log.debug "Started the service with ${service_file} with rc=${rc}"

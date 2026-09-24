@@ -1,0 +1,9 @@
+---
+emacs_start_delay_sec: 3
+emacs_flavor: doom
+emacs_binary: /Applications/Emacs.app/Contents/MacOS/Emacs
+emacsclient_binary: /Applications/Emacs.app/Contents/MacOS/bin/emacsclient
+emacs_init_directory: .config/emacs
+emacs_plist_label: gnu.emacs-server-doom.daemon
+emacs_stdout_log_file: /tmp/emacs-server-doom.daemon.stdout.log
+emacs_stderr_log_file: /tmp/emacs-server-doom.daemon.stderr.log

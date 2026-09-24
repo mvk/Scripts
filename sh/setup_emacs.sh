@@ -471,6 +471,125 @@ setup_emacs_cfg_files() {
   return "${rc}"
 }
 
+################################################################################
+# Service setups
+################################################################################
+svc_setup_systemctl() {
+  local \
+    unit_file \
+    unit \
+    rc
+  unit_file="${1?cannot continue without unit_file}"
+  unit="${unit_file##/*}"
+  unit="${unit%*.}"
+  log.debug "Detected unit ${unit} from unit_file ${unit_file}"
+
+  cmd.run 0 "${SVC_MGMT_BIN}" --user daemon-reload
+  rc=$?
+  log.info "Reloaded SystemD after unit file ${unit} changed with rc=${rc}"
+
+  cmd.run 0 "${SVC_MGMT_BIN}" --user enable "${unit}"
+  rc=$?
+  log.info "Enabled SystemD unit ${unit} with rc=${rc}"
+
+  cmd.run 0 "${SVC_MGMT_BIN}" --user start "${unit}"
+  rc=$?
+  log.info "Started systemd unit for ${unit} with rc=${rc}"
+  return "${rc}"
+}
+
+svc_setup_launchctl() {
+  local \
+    service_file \
+    service \
+    rc
+  service_file="${1?cannot continue without service_file}"
+  service="${service_file##/*}"
+  service="${service%*.}"
+
+  log.debug "Detected service ${service} from plist file ${service_file}"
+  cmd.run 0 "${SVC_MGMT_BIN}" stop "${service}"
+  rc=$?
+  log.info "Stopped launchd service ${service} with rc=${rc}"
+  cmd.run 0 "${SVC_MGMT_BIN}" unload "${service_file}"
+  rc=$?
+  log.info "Unloaded launchd service ${service} with rc=${rc}"
+  cmd.run 0 "${SVC_MGMT_BIN}" load -w "${service_file}"
+  rc=$?
+  log.info "Loaded and started launchctl plist ${service_file} of service ${service} with rc=${rc}"
+  return "${rc}"
+}
+
+svc_setup() {
+  local \
+    service_file \
+    os \
+    svc_enable_function
+  service_file="${1?cannot continue without service_file}"
+  os="${2:-"${EMACS_OS}"}"
+  svc_enable_function="svc_setup_${SVC_MGMT_BIN_MAP[${os}]}"
+  "${svc_enable_function}" "${service_file}"
+  return $?
+}
+
+svc_templates_setup_Darwin() {
+  local \
+    service_file \
+    tpl_file \
+    ctx_file \
+    rc
+  service_file="${1:-"${EMACS_SVC_FILE}"}"
+  tpl_file="${2:-"${EMACS_SVC_TPL}"}"
+  ctx_file="${3:-"${service_file##*/}.context.yaml"}"
+  local actual_ctx_file="${service_file}.context.yml"
+  local ctx_tpl_file="${actual_ctx_file}.j2"
+  render_template "${actual_ctx_file}" "${ctx_tpl_file}" "${ctx_file}"
+  rc=$?
+  log.debug "Generated actual context file: ${actual_ctx_file} with rc=${rc}"
+  render_template "${service_file}" "${tpl_file}" "${actual_ctx_file}"
+  rc=$?
+  log.debug "Generated ${service_file} from ${tpl_file} and ${actual_ctx_file} with rc=${rc}"
+  return "${rc}"
+}
+
+svc_templates_setup_Linux() {
+  local \
+    service_file \
+    tpl_file \
+    ctx_file \
+    rc
+  service_file="${1?cannot continue without service_file}"
+  tpl_file="${2?cannot continue without tpl_file}"
+  ctx_file="${3?cannot continue without ctx_file}"
+  render_template "${service_file}" "${tpl_file}" "${ctx_file}"
+  rc=$?
+  log.debug "Generated ${service_file} from ${tpl_file} and ${ctx_file} with rc=${rc}"
+  return "${rc}"
+}
+
+svc_templates_setup() {
+  local \
+    service_file \
+    tpl_file \
+    ctx_file \
+    os \
+    svc_templates_setup_method \
+    rc
+  service_file="${1?cannot continue without service_file}"
+  tpl_file="${2?cannot continue without tpl_file}"
+  ctx_file="${3?cannot continue without ctx_file}"
+  os="${4:-"${EMACS_OS}"}"
+  log.debug "service_file: ${service_file}"
+  log.debug "tpl_file: ${tpl_file}"
+  log.debug "ctx_file: ${ctx_file}"
+  log.debug "os: ${os}"
+  svc_templates_setup_method="svc_templates_setup_${os}"
+  log.debug "Detected svc_template_setup_method to be: ${svc_templates_setup_method}"
+  "${svc_templates_setup_method}" "${service_file}" "${tpl_file}" "${ctx_file}"
+  rc=$?
+  return "${rc}"
+}
+
 setup_emacs_svc() {
   local \
     service_file \
@@ -478,34 +597,29 @@ setup_emacs_svc() {
     ctx_file \
     os \
     rc
-  service_file="${1:-".config/systemd/user/emacs-headless.service"}"
-  tpl_file="${2:-"${service_file}.j2"}"
-  ctx_file="${3:-"${service_file##*/}.context.yaml"}"
+  service_file="${1:-"${EMACS_SVC_FILE}"}"
+  tpl_file="${2:-"${EMACS_SVC_TPL}"}"
+  ctx_file="${3:-"${EMACS_SVC_CTX}"}"
+  os="${4:-"${EMACS_OS}"}"
+  log.debug "service_file: ${service_file}"
+  log.debug "tpl_file: ${tpl_file}"
+  log.debug "ctx_file: ${ctx_file}"
+  log.debug "os: ${os}"
   skip_disabled "${FUNCNAME[0]}" || return 0
   # skip_existing "${FUNCNAME[0]}" "${install_root}/${service_file}" || return 0
-  render_template "${service_file}" "${tpl_file}" "${ctx_file}"
-  os="$(uname -s | tr '[:upper:]' '[:lower:]' || true)"
-  case "${os}" in
-  "linux")
-    ## enable the service and start it too
-    cmd.run 0 systemctl --user daemon-reload
-    rc=$?
-    log.info "Reloaded systemd for ${service_file##*/} with rc=${rc}"
-    cmd.run 0 systemctl --user enable "${service_file##*/}"
-    rc=$?
-    log.info "Enabled systemd unit for ${service_file##*/} with rc=${rc}"
-    cmd.run 0 systemctl --user start "${service_file##*/}"
-    log.info "Started systemd unit for ${service_file##*/} with rc=${rc}"
-    rc=$?
-    ;;
-  "darwin")
-    cmd.run 0 launchctl load -w "${service_file}"
-    rc=$?
-    log.info "Started launchctl plist for ${service_file##*/} with rc=${rc}"
-    ;;
-  esac
+  exit 0
+  svc_templates_setup "${service_file}" "${tpl_file}" "${ctx_file}" "${os}"
+  rc=$?
+  log.debug "Rendered ${service_file} with rc=${rc}"
+  [[ "${rc}" -eq 0 ]] || die 1 "Failed to render ${service_file}"
+  svc_setup "${service_file}" "${os}"
+  rc=$?
+  log.debug "Started the service with ${service_file} with rc=${rc}"
   return "${rc}"
 }
+################################################################################
+# Service setups END
+################################################################################
 
 ensure_emacs_flavor() {
   local \

@@ -10,6 +10,10 @@ if ! declare -p EMACS_CFG_FILES 2>/dev/null | grep -q '^declare -A'; then
 else
   EMACS_CFG_FILES=()
 fi
+EMACS_OS="${EMACS_OS:-"$(uname -s || true)"}"
+declare -A SVC_MGMT_BIN_MAP
+SVC_MGMT_BIN_MAP["Linux"]="systemctl"
+SVC_MGMT_BIN_MAP["Darwin"]="launchctl"
 
 if [[ -d "${SCRIPT_DIR}/lib" ]]; then
   for fname in "${SCRIPT_DIR}/lib"/*.bash; do

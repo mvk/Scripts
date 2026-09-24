@@ -25,9 +25,15 @@ if [[ -d "${SCRIPT_DIR}/lib" ]]; then
     source "${fname}"
   done
 fi
-fname=.env."${SCRIPT_NAME%%.*}".bash
-# shellcheck disable=SC1090
-[[ -r "${fname}" ]] && source "${fname}"
+declare -a EXTRA_SCRIPTS
+EXTRA_SCRIPTS=(
+  ".${EMACS_OS}.env.${SCRIPT_NAME%%.*}.bash"
+  .env."${SCRIPT_NAME%%.*}".bash
+)
+for fname in "${EXTRA_SCRIPTS[@]}"; do
+  # shellcheck disable=SC1090
+  [[ -r "${fname}" ]] && source "${fname}"
+done
 
 EMACS_FLAVOR="${EMACS_FLAVOR:-"spacemacs"}"
 

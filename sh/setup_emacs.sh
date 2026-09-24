@@ -508,8 +508,8 @@ svc_setup_launchctl() {
     service \
     rc
   service_file="${1?cannot continue without service_file}"
-  service="${service_file##/*}"
-  service="${service%*.}"
+  service="${service_file##*/}"
+  service="${service%.*}"
 
   log.debug "Inside ${FUNCNAME[0]}()"
   log.debug "Detected service ${service} from plist file ${service_file}"

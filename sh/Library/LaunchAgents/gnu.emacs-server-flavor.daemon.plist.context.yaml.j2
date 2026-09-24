@@ -1,0 +1,23 @@
+---
+data:
+  Label:
+    type: string
+    value: {{ emacs_plist_label }}
+  ProgramArguments:
+    type: array
+    value:
+      - {{ emacs_binary }}
+      - --init-directory={{ ENV.HOME }}/{{ emacs_init_directory }}
+      - --fg-daemon={{ emacs_flavor }}
+  RunAtLoad:
+    type: bool
+    value: true
+  KeepAlive:
+    type: bool
+    value: true
+  StandardOutPath:
+    type: string
+    value: {{ emacs_stdout_log_file }}
+  StandardErrorPath:
+    type: string
+    value: {{ emacs_stderr_log_file }}

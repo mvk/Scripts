@@ -10,6 +10,10 @@ if ! declare -p EMACS_CFG_FILES 2>/dev/null | grep -q '^declare -A'; then
 else
   EMACS_CFG_FILES=()
 fi
+EMACS_OS="${EMACS_OS:-"$(uname -s || true)"}"
+declare -A SVC_MGMT_BIN_MAP
+SVC_MGMT_BIN_MAP["Linux"]="systemctl"
+SVC_MGMT_BIN_MAP["Darwin"]="launchctl"
 
 if [[ -d "${SCRIPT_DIR}/lib" ]]; then
   for fname in "${SCRIPT_DIR}/lib"/*.bash; do
@@ -21,35 +25,47 @@ if [[ -d "${SCRIPT_DIR}/lib" ]]; then
     source "${fname}"
   done
 fi
-fname=.env."${SCRIPT_NAME%%.*}".bash
-# shellcheck disable=SC1090
-[[ -r "${fname}" ]] && source "${fname}"
+declare -a EXTRA_SCRIPTS
+EXTRA_SCRIPTS=(
+  ".${EMACS_OS}.env.${SCRIPT_NAME%%.*}.bash"
+  .env."${SCRIPT_NAME%%.*}".bash
+)
+for fname in "${EXTRA_SCRIPTS[@]}"; do
+  # shellcheck disable=SC1090
+  [[ -r "${fname}" ]] && source "${fname}"
+done
 
 EMACS_FLAVOR="${EMACS_FLAVOR:-"spacemacs"}"
-
-if command -v systemctl >/dev/null; then
-  EMACS_SVC_FILE="${EMACS_SVC_FILE:-".config/systemd/user/emacs-server-${EMACS_FLAVOR}.service"}"
-  EMACS_SVC_TPL="${EMACS_SVC_TPL:-"${PWD}/.config/systemd/user/emacs-server-flavor.service.j2"}"
-  EMACS_SVC_CTX="${EMACS_SVC_CTX:-"${PWD}/emacs-server-flavor.service.context.yaml"}"
-  log.info "Setup EMACS_SVC_* variables for systemd"
-elif command -v launchctl >/dev/null; then
-  EMACS_SVC_FILE="${HOME}/Library/LaunchAgents/gnu.emacs-server-${EMACS_FLAVOR}.daemon.plist"
-  EMACS_SVC_TPL="${PWD}/Library/LaunchAgents/gnu.emacs-server-flavor.daemon.plist.j2"
-  EMACS_SVC_CTX="${PWD}/emacs-server-flavor.service.context.yaml"
-  log.info "Setup EMACS_SVC_* variables for launchctl"
-else
-  die 1 "Unsupported system: neither systemd nor launchtl"
+SVC_MGMT_BIN="${SVC_MGMT_BIN_MAP["${EMACS_OS}"]}"
+if ! command -v "${SVC_MGMT_BIN}" >/dev/null; then
+  die 1 "Missing Service management binary ${SVC_MGMT_BIN} on PATH for OS ${EMACS_OS}"
 fi
 
+EMACS_SVC_CTX="${EMACS_SVC_CTX:-"${PWD}/${EMACS_OS}.emacs-server-flavor.service.context.yaml"}"
+case "${SVC_MGMT_BIN}" in
+"systemctl")
+  EMACS_SVC_FILE="${EMACS_SVC_FILE:-"${HOME}/.config/systemd/user/emacs-server-${EMACS_FLAVOR}.service"}"
+  EMACS_SVC_TPL="${EMACS_SVC_TPL:-"${PWD}/.config/systemd/user/emacs-server-flavor.service.j2"}"
+  ;;
+"launchctl")
+  EMACS_SVC_FILE="${HOME}/Library/LaunchAgents/gnu.emacs-server-${EMACS_FLAVOR}.daemon.plist"
+  EMACS_SVC_TPL="${PWD}/Library/LaunchAgents/gnu.emacs-server-flavor.daemon.plist.j2"
+  ;;
+*)
+  die 1 "Unsupported/customized system. Service management binary ${SVC_MGMT_BIN} is not supported"
+  ;;
+esac
+log.info "Completed setup EMACS_SVC_* variables for ${SVC_MGMT_BIN} on ${EMACS_OS}"
+
 SYSTEMD_INSTALL_ROOT="${SYSTEMD_INSTALL_ROOT:-"${HOME}"}"
-QL_URL="${QL_URL:-"https://beta.quicklisp.org/quicklisp.lisp"}"
-QL_INIT_FILE="${QL_INIT_FILE:-"${PWD}/quicklisp-init.lisp"}"
 MU4E_ENABLED="${MU4E_ENABLED:-"0"}"
 
-SBCL_CFG_FILE="${SBCL_CFG_FILE:-"${HOME}/.sbclrc"}"
-SBCL_CFG_TPL="${SBCL_CFG_TPL:-"${PWD}/$(basename "${SBCL_CFG_FILE}").j2"}"
-SBCL_CFG_CTX="${SBCL_CFG_CTX:-"${PWD}/$(basename "${SBCL_CFG_FILE}").context.yaml"}"
-
+declare -a MINIJINJA_CLI_FLAGS_DEFAULT
+MINIJINJA_CLI_FLAGS_DEFAULT=(
+  --autoescape none
+  --strict
+  --env
+)
 DESKTOP_FILE="${DESKTOP_FILE:-"${HOME}/.local/share/applications/emacsclient-${EMACS_FLAVOR}.desktop"}"
 DESKTOP_TPL="${DESKTOP_TPL:-"${PWD}/emacsclient.desktop.j2"}"
 DESKTOP_CTX="${DESKTOP_CTX:-"${DESKTOP_FILE//j2/context.yaml}"}"
@@ -61,9 +77,7 @@ QDBUS_NS="${QDBUS_NS:-"org.kde.KWin"}"
 
 SETUP_PACKAGES_SKIP="${SETUP_PACKAGES_SKIP:-"0"}"
 SETUP_EMACS_CFG_DIR_SKIP="${SETUP_EMACS_CFG_DIR_SKIP:-"0"}"
-SETUP_QUICKLISP_SKIP="${SETUP_QUICKLISP_SKIP:-"0"}"
 SETUP_EMACS_CFG_FILES_SKIP="${SETUP_EMACS_CFG_FILES_SKIP:-"0"}"
-SETUP_SBCLRC_FILE_SKIP="${SETUP_SBCLRC_FILE_SKIP:-"0"}"
 SETUP_EMACS_SVC_SKIP="${SETUP_EMACS_SVC_SKIP:-"0"}"
 SETUP_DESKTOP_FILE_SKIP="${SETUP_DESKTOP_FILE_SKIP:-"0"}"
 SETUP_PLASMA_HOOKS_SKIP="${SETUP_PLASMA_HOOKS_SKIP:-"0"}"
@@ -80,7 +94,6 @@ APT_FLAGS=(
 )
 APT_PACKAGES=(
   emacs-gtk
-  sbcl
   gcc
   g++
   make
@@ -93,7 +106,6 @@ DNF_FLAGS=(
 )
 DNF_PACKAGES=(
   emacs
-  sbcl
   gcc
   make
   rlwrap
@@ -103,7 +115,6 @@ DNF_PACKAGES=(
 
 BREW_PACKAGES=(
   emacs-app@nightly
-  sbcl
   make
   llvm@21
   rlwrap
@@ -149,7 +160,6 @@ run.detect_distro_id() {
     die 1 "Unsupported OS: ${os}"
     ;;
   esac
-
   if ! [[ -v DISTRO_ID_PKG_MGR_MAP["${id}"] ]]; then
     log.fatal "Unsupported distribution id: ${id}"
     die 1 "Supported distribution ids: ${!DISTRO_ID_PKG_MGR_MAP[*]}"
@@ -263,7 +273,9 @@ run.pkg() {
     die 1 "Supported distribution ids: ${!DISTRO_ID_PKG_MGR_MAP[*]}"
     ;;
   esac
-
+  if [[ "${#EXTRA_PACKAGES[@]}" -gt 0 ]]; then
+    packages+=("${EXTRA_PACKAGES[@]}")
+  fi
   "${pkg_runner}" "${op}" "${packages[@]}"
   return 0
 }
@@ -371,43 +383,6 @@ setup_emacs_cfg_dir() {
   return "${rc}"
 }
 
-setup_quicklisp() {
-  local \
-    ql_url \
-    ql_lisp \
-    ql_init \
-    title \
-    sbclrc \
-    rc
-  local -a \
-    cmd
-  sbclrc="${HOME}/.sbclrc"
-  ql_url="${1:-"${QL_URL}"}"
-  ql_lisp="${ql_url##*/}"
-  title="${ql_lisp%%.*}"
-  ql_init="${2:-"${title}-init.lisp"}"
-  skip_disabled "${FUNCNAME[0]}" || return 0
-  skip_existing "${FUNCNAME[0]}" "${sbclrc}" "${HOME}/${title}" || return 0
-  log.info "Start  => Setup of ${title}"
-  cmd.run 0 curl -fO "${ql_url}" && rc=$? || rc=$?
-  log.debug "Downloaded: ${ql_lisp} from: ${ql_url} with rc=${rc}"
-  cmd=(
-    sbcl
-    --load "${ql_lisp}"
-  )
-  if [[ ! -f "${ql_init}" ]]; then
-    log.fatal "init file ${ql_init} is missing."
-  fi
-  cmd+=(--load "${ql_init}")
-  cmd+=(--quit)
-  cmd.run 0 "${cmd[@]}"
-  rc=$?
-  log.debug "sbcl loaded: ${ql_lisp} & ${ql_init} with rc=$?"
-  del_paths "${ql_lisp}"
-  log.info "Finish <= Setup of ${title} with rc=${rc}"
-  return "${rc}"
-}
-
 render_template() {
   local \
     output \
@@ -416,11 +391,17 @@ render_template() {
     context \
     context_format
   local -a \
+    extra_flags \
     cmd
   output="${1?cannot continue without output}"
   base="$(basename "${output}" || echo "${output##*/}")"
   template="${2:-"${base}.j2"}"
   context="${3:-"${base}.context.yaml"}"
+  shift 3
+  extra_flags=("${@}")
+  if [[ "${#extra_flags[@]}" -eq 0 ]]; then
+    extra_flags=("${MINIJINJA_CLI_FLAGS_DEFAULT[@]}")
+  fi
   context_format="${context##*.}"
   [[ -f "${template}" ]] || die 1 "Template is missing: ${template}"
   [[ -f "${context}" ]] || die 1 "Template context is missing: ${context}"
@@ -430,7 +411,7 @@ render_template() {
   # render the template tpl_file using context ctx_file as output trg_file:
   cmd=(minijinja-cli)
   cmd+=(-f "${context_format}")
-  cmd+=(-a none)
+  cmd+=("${extra_flags[@]}")
   cmd+=(-o "${output}")
   cmd+=("${template}" "${context}")
   cmd.run 0 "${cmd[@]}"
@@ -493,21 +474,129 @@ setup_emacs_cfg_files() {
   return "${rc}"
 }
 
-setup_sbclrc_file() {
+################################################################################
+# Service setups
+################################################################################
+svc_setup_systemctl() {
   local \
-    cfg_file \
-    trg_base \
+    unit_file \
+    unit \
+    rc
+  unit_file="${1?cannot continue without unit_file}"
+  unit="${unit_file##/*}"
+  unit="${unit%*.}"
+  log.debug "Inside ${FUNCNAME[0]}()"
+  log.debug "Detected unit ${unit} from unit_file ${unit_file}"
+
+  cmd.run 0 "${SVC_MGMT_BIN}" --user daemon-reload
+  rc=$?
+  log.info "Reloaded SystemD after unit file ${unit} changed with rc=${rc}"
+
+  cmd.run 0 "${SVC_MGMT_BIN}" --user enable "${unit}"
+  rc=$?
+  log.info "Enabled SystemD unit ${unit} with rc=${rc}"
+
+  cmd.run 0 "${SVC_MGMT_BIN}" --user start "${unit}"
+  rc=$?
+  log.info "Started systemd unit for ${unit} with rc=${rc}"
+  return "${rc}"
+}
+
+svc_setup_launchctl() {
+  local \
+    service_file \
+    service \
+    rc
+  service_file="${1?cannot continue without service_file}"
+  service="${service_file##*/}"
+  service="${service%.*}"
+
+  log.debug "Inside ${FUNCNAME[0]}()"
+  log.debug "Detected service ${service} from plist file ${service_file}"
+  cmd.run 0 "${SVC_MGMT_BIN}" stop "${service}"
+  rc=$?
+  log.info "Stopped launchd service ${service} with rc=${rc}"
+  cmd.run 0 "${SVC_MGMT_BIN}" unload "${service_file}"
+  rc=$?
+  log.info "Unloaded launchd service ${service} with rc=${rc}"
+  cmd.run 0 "${SVC_MGMT_BIN}" load -w "${service_file}"
+  rc=$?
+  log.info "Loaded and started launchctl plist ${service_file} of service ${service} with rc=${rc}"
+  return "${rc}"
+}
+
+svc_setup() {
+  local \
+    service_file \
+    os \
+    svc_enable_function \
+    rc
+  service_file="${1?cannot continue without service_file}"
+  os="${2?cannot continue without os}"
+  svc_enable_function="svc_setup_${SVC_MGMT_BIN_MAP[${os}]}"
+  log.debug "Inside ${FUNCNAME[0]}()"
+  "${svc_enable_function}" "${service_file}"
+  rc=$?
+  return "${rc}"
+}
+
+svc_templates_setup_Darwin() {
+  local \
+    service_file \
+    tpl_file \
+    ctx_file \
+    actual_ctx_file \
+    ctx_tpl_file \
+    rc
+  service_file="${1?cannot continue without service_file}"
+  tpl_file="${2?cannot continue without tpl_file}"
+  ctx_file="${3?cannot continue without ctx_file}"
+  actual_ctx_file="${tpl_file%.*}.context.yaml"
+  ctx_tpl_file="${actual_ctx_file}.j2"
+  log.debug "Inside ${FUNCNAME[0]}()"
+  log.debug "actual_ctx_file: ${actual_ctx_file}"
+  log.debug "ctx_tpl_file: ${ctx_tpl_file}"
+  render_template "${actual_ctx_file}" "${ctx_tpl_file}" "${ctx_file}"
+  rc=$?
+  log.debug "Generated actual context file: ${actual_ctx_file} with rc=${rc}"
+  render_template "${service_file}" "${tpl_file}" "${actual_ctx_file}"
+  rc=$?
+  log.info "Generated: ${service_file} from template: ${tpl_file} and context: ${actual_ctx_file} with rc=${rc}"
+  return "${rc}"
+}
+
+svc_templates_setup_Linux() {
+  local \
+    service_file \
     tpl_file \
     ctx_file \
     rc
-  cfg_file="${1?cannot continue without cfg_file}" # is generated
-  skip_disabled "${FUNCNAME[0]}" || return 0
-  skip_existing "${FUNCNAME[0]}" "${cfg_file}" || return 0
-  trg_base="$(basename "${cfg_file}")"
-  tpl_file="${2:-"${trg_base}.j2"}"           # must exist
-  ctx_file="${3:-"${trg_base}.context.yaml"}" # is generated
-  # ensure template exists
-  render_template "${cfg_file}" "${tpl_file}" "${ctx_file}"
+  service_file="${1?cannot continue without service_file}"
+  tpl_file="${2?cannot continue without tpl_file}"
+  ctx_file="${3?cannot continue without ctx_file}"
+  log.debug "Inside ${FUNCNAME[0]}()"
+  render_template "${service_file}" "${tpl_file}" "${ctx_file}"
+  rc=$?
+  log.info "Generated: ${service_file} from template: ${tpl_file} and context: ${ctx_file} with rc=${rc}"
+  return "${rc}"
+}
+
+svc_templates_setup() {
+  local \
+    service_file \
+    tpl_file \
+    ctx_file \
+    os \
+    svc_templates_setup_method \
+    rc
+  service_file="${1?cannot continue without service_file}"
+  tpl_file="${2?cannot continue without tpl_file}"
+  ctx_file="${3?cannot continue without ctx_file}"
+  os="${4:-"${EMACS_OS}"}"
+  log.debug "Inside ${FUNCNAME[0]}()"
+  svc_templates_setup_method="svc_templates_setup_${os}"
+  log.debug "Detected svc_template_setup_method to be: ${svc_templates_setup_method}"
+  "${svc_templates_setup_method}" "${service_file}" "${tpl_file}" "${ctx_file}"
   rc=$?
   return "${rc}"
 }
@@ -519,34 +608,29 @@ setup_emacs_svc() {
     ctx_file \
     os \
     rc
-  service_file="${1:-".config/systemd/user/emacs-headless.service"}"
-  tpl_file="${2:-"${service_file}.j2"}"
-  ctx_file="${3:-"${service_file##*/}.context.yaml"}"
+  service_file="${1:-"${EMACS_SVC_FILE}"}"
+  tpl_file="${2:-"${EMACS_SVC_TPL}"}"
+  ctx_file="${3:-"${EMACS_SVC_CTX}"}"
+  os="${4:-"${EMACS_OS}"}"
+  log.debug "Inside ${FUNCNAME[0]}()"
+  log.debug "service_file: ${service_file}"
+  log.debug "tpl_file: ${tpl_file}"
+  log.debug "ctx_file: ${ctx_file}"
+  log.debug "os: ${os}"
   skip_disabled "${FUNCNAME[0]}" || return 0
   # skip_existing "${FUNCNAME[0]}" "${install_root}/${service_file}" || return 0
-  render_template "${service_file}" "${tpl_file}" "${ctx_file}"
-  os="$(uname -s | tr '[:upper:]' '[:lower:]' || true)"
-  case "${os}" in
-  "linux")
-    ## enable the service and start it too
-    cmd.run 0 systemctl --user daemon-reload
-    rc=$?
-    log.info "Reloaded systemd for ${service_file##*/} with rc=${rc}"
-    cmd.run 0 systemctl --user enable "${service_file##*/}"
-    rc=$?
-    log.info "Enabled systemd unit for ${service_file##*/} with rc=${rc}"
-    cmd.run 0 systemctl --user start "${service_file##*/}"
-    log.info "Started systemd unit for ${service_file##*/} with rc=${rc}"
-    rc=$?
-    ;;
-  "darwin")
-    cmd.run 0 launchctl load -w "${service_file}"
-    rc=$?
-    log.info "Started launchctl plist for ${service_file##*/} with rc=${rc}"
-    ;;
-  esac
+  svc_templates_setup "${service_file}" "${tpl_file}" "${ctx_file}" "${os}"
+  rc=$?
+  [[ "${rc}" -eq 0 ]] || die 1 "Failed to render the file: ${service_file}"
+  svc_setup "${service_file}" "${os}"
+  rc=$?
+  log.info "Started the service with ${service_file} with rc=${rc}"
+  [[ "${rc}" -eq 0 ]] || die 1 "Failed to start the service: ${service_file}"
   return "${rc}"
 }
+################################################################################
+# Service setups END
+################################################################################
 
 ensure_emacs_flavor() {
   local \
@@ -576,9 +660,9 @@ ensure_configuration() {
   "*.el")
     # TODO: add support for doom/vanilla later
     if [[ -v DOOMDIR ]]; then
-      die 1 "this script does not support EMACS_FLAVOR=doom"
+      die 1 "This script does not support EMACS_FLAVOR=doom"
     fi
-    die 1 "this script does not support EMACS_FLAVOR=vanilla"
+    die 1 "This script does not support EMACS_FLAVOR=vanilla"
     ;;
   *)
     die 1 "this script does not support this configuration file: ${config_file}"
@@ -677,20 +761,6 @@ main() {
     "${EMACS_CFG_DIR}"
   )
   setup_emacs_cfg_dir "${params[@]}"
-  # rc=$?
-  # params=(
-  #   "${QL_URL}"
-  #   "${QL_INIT_FILE}"
-  # )
-  # setup_quicklisp "${params[@]}"
-  # rc=$?
-  # params=(
-  #   "${SBCL_CFG_FILE}"
-  #   "${SBCL_CFG_TPL}"
-  #   "${SBCL_CFG_CTX}"
-  # )
-  # setup_sbclrc_file "${params[@]}"
-  # rc=$?
   params=(
     EMACS_CFG_FILES
   )
@@ -702,28 +772,28 @@ main() {
     "${EMACS_SVC_CTX}"
   )
   setup_emacs_svc "${params[@]}"
-  # rc=$?
-  # params=(
-  #   "${DESKTOP_FILE}"
-  #   "${DESKTOP_TPL}"
-  #   "${DESKTOP_CTX}"
-  # )
-  # setup_desktop_file "${params[@]}"
-  # rc=$?
-  # kconfig_group="${DESKTOP_FILE##*/}"
-  # kconfig_group="${kconfig_group%.*}"
-  # log.debug "Calculated kconfig group: '${kconfig_group}'"
-  # params=(
-  #   "${PLASMA_SHCSRC}"
-  #   "${kconfig_group}"
-  #   "${PLASMA_KEY}"
-  #   "${PLASMA_KEY_VAL}"
-  #   "${QDBUS_NS}"
-  # )
-  # params+=(
-  #   "plasma-kglobalaccel.service"
-  # )
-  # setup_plasma_hooks "${params[@]}"
+  rc=$?
+  params=(
+    "${DESKTOP_FILE}"
+    "${DESKTOP_TPL}"
+    "${DESKTOP_CTX}"
+  )
+  setup_desktop_file "${params[@]}"
+  rc=$?
+  kconfig_group="${DESKTOP_FILE##*/}"
+  kconfig_group="${kconfig_group%.*}"
+  log.debug "Calculated kconfig group: '${kconfig_group}'"
+  params=(
+    "${PLASMA_SHCSRC}"
+    "${kconfig_group}"
+    "${PLASMA_KEY}"
+    "${PLASMA_KEY_VAL}"
+    "${QDBUS_NS}"
+  )
+  params+=(
+    "plasma-kglobalaccel.service"
+  )
+  setup_plasma_hooks "${params[@]}"
   rc=$?
   cmd.run 0 popd &>/dev/null || {
     log.fatal "Failed to get back from '${PWD}'"

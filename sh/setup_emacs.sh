@@ -647,28 +647,28 @@ main() {
     "${EMACS_SVC_CTX}"
   )
   setup_emacs_svc "${params[@]}"
-  # rc=$?
-  # params=(
-  #   "${DESKTOP_FILE}"
-  #   "${DESKTOP_TPL}"
-  #   "${DESKTOP_CTX}"
-  # )
-  # setup_desktop_file "${params[@]}"
-  # rc=$?
-  # kconfig_group="${DESKTOP_FILE##*/}"
-  # kconfig_group="${kconfig_group%.*}"
-  # log.debug "Calculated kconfig group: '${kconfig_group}'"
-  # params=(
-  #   "${PLASMA_SHCSRC}"
-  #   "${kconfig_group}"
-  #   "${PLASMA_KEY}"
-  #   "${PLASMA_KEY_VAL}"
-  #   "${QDBUS_NS}"
-  # )
-  # params+=(
-  #   "plasma-kglobalaccel.service"
-  # )
-  # setup_plasma_hooks "${params[@]}"
+  rc=$?
+  params=(
+    "${DESKTOP_FILE}"
+    "${DESKTOP_TPL}"
+    "${DESKTOP_CTX}"
+  )
+  setup_desktop_file "${params[@]}"
+  rc=$?
+  kconfig_group="${DESKTOP_FILE##*/}"
+  kconfig_group="${kconfig_group%.*}"
+  log.debug "Calculated kconfig group: '${kconfig_group}'"
+  params=(
+    "${PLASMA_SHCSRC}"
+    "${kconfig_group}"
+    "${PLASMA_KEY}"
+    "${PLASMA_KEY_VAL}"
+    "${QDBUS_NS}"
+  )
+  params+=(
+    "plasma-kglobalaccel.service"
+  )
+  setup_plasma_hooks "${params[@]}"
   rc=$?
   cmd.run 0 popd &>/dev/null || {
     log.fatal "Failed to get back from '${PWD}'"

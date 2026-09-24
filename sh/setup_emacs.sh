@@ -58,13 +58,7 @@ esac
 log.info "Completed setup EMACS_SVC_* variables for ${SVC_MGMT_BIN} on ${EMACS_OS}"
 
 SYSTEMD_INSTALL_ROOT="${SYSTEMD_INSTALL_ROOT:-"${HOME}"}"
-QL_URL="${QL_URL:-"https://beta.quicklisp.org/quicklisp.lisp"}"
-QL_INIT_FILE="${QL_INIT_FILE:-"${PWD}/quicklisp-init.lisp"}"
 MU4E_ENABLED="${MU4E_ENABLED:-"0"}"
-
-SBCL_CFG_FILE="${SBCL_CFG_FILE:-"${HOME}/.sbclrc"}"
-SBCL_CFG_TPL="${SBCL_CFG_TPL:-"${PWD}/$(basename "${SBCL_CFG_FILE}").j2"}"
-SBCL_CFG_CTX="${SBCL_CFG_CTX:-"${PWD}/$(basename "${SBCL_CFG_FILE}").context.yaml"}"
 
 DESKTOP_FILE="${DESKTOP_FILE:-"${HOME}/.local/share/applications/emacsclient-${EMACS_FLAVOR}.desktop"}"
 DESKTOP_TPL="${DESKTOP_TPL:-"${PWD}/emacsclient.desktop.j2"}"
@@ -77,9 +71,7 @@ QDBUS_NS="${QDBUS_NS:-"org.kde.KWin"}"
 
 SETUP_PACKAGES_SKIP="${SETUP_PACKAGES_SKIP:-"0"}"
 SETUP_EMACS_CFG_DIR_SKIP="${SETUP_EMACS_CFG_DIR_SKIP:-"0"}"
-SETUP_QUICKLISP_SKIP="${SETUP_QUICKLISP_SKIP:-"0"}"
 SETUP_EMACS_CFG_FILES_SKIP="${SETUP_EMACS_CFG_FILES_SKIP:-"0"}"
-SETUP_SBCLRC_FILE_SKIP="${SETUP_SBCLRC_FILE_SKIP:-"0"}"
 SETUP_EMACS_SVC_SKIP="${SETUP_EMACS_SVC_SKIP:-"0"}"
 SETUP_DESKTOP_FILE_SKIP="${SETUP_DESKTOP_FILE_SKIP:-"0"}"
 SETUP_PLASMA_HOOKS_SKIP="${SETUP_PLASMA_HOOKS_SKIP:-"0"}"
@@ -96,7 +88,6 @@ APT_FLAGS=(
 )
 APT_PACKAGES=(
   emacs-gtk
-  sbcl
   gcc
   g++
   make
@@ -109,7 +100,6 @@ DNF_FLAGS=(
 )
 DNF_PACKAGES=(
   emacs
-  sbcl
   gcc
   make
   rlwrap
@@ -119,7 +109,6 @@ DNF_PACKAGES=(
 
 BREW_PACKAGES=(
   emacs-app@nightly
-  sbcl
   make
   llvm@21
   rlwrap
@@ -165,7 +154,6 @@ run.detect_distro_id() {
     die 1 "Unsupported OS: ${os}"
     ;;
   esac
-
   if ! [[ -v DISTRO_ID_PKG_MGR_MAP["${id}"] ]]; then
     log.fatal "Unsupported distribution id: ${id}"
     die 1 "Supported distribution ids: ${!DISTRO_ID_PKG_MGR_MAP[*]}"
@@ -387,42 +375,6 @@ setup_emacs_cfg_dir() {
   return "${rc}"
 }
 
-setup_quicklisp() {
-  local \
-    ql_url \
-    ql_lisp \
-    ql_init \
-    title \
-    sbclrc \
-    rc
-  local -a \
-    cmd
-  sbclrc="${HOME}/.sbclrc"
-  ql_url="${1:-"${QL_URL}"}"
-  ql_lisp="${ql_url##*/}"
-  title="${ql_lisp%%.*}"
-  ql_init="${2:-"${title}-init.lisp"}"
-  skip_disabled "${FUNCNAME[0]}" || return 0
-  skip_existing "${FUNCNAME[0]}" "${sbclrc}" "${HOME}/${title}" || return 0
-  log.info "Start  => Setup of ${title}"
-  cmd.run 0 curl -fO "${ql_url}" && rc=$? || rc=$?
-  log.debug "Downloaded: ${ql_lisp} from: ${ql_url} with rc=${rc}"
-  cmd=(
-    sbcl
-    --load "${ql_lisp}"
-  )
-  if [[ ! -f "${ql_init}" ]]; then
-    log.fatal "init file ${ql_init} is missing."
-  fi
-  cmd+=(--load "${ql_init}")
-  cmd+=(--quit)
-  cmd.run 0 "${cmd[@]}"
-  rc=$?
-  log.debug "sbcl loaded: ${ql_lisp} & ${ql_init} with rc=$?"
-  del_paths "${ql_lisp}"
-  log.info "Finish <= Setup of ${title} with rc=${rc}"
-  return "${rc}"
-}
 
 render_template() {
   local \
@@ -693,20 +645,6 @@ main() {
     "${EMACS_CFG_DIR}"
   )
   setup_emacs_cfg_dir "${params[@]}"
-  # rc=$?
-  # params=(
-  #   "${QL_URL}"
-  #   "${QL_INIT_FILE}"
-  # )
-  # setup_quicklisp "${params[@]}"
-  # rc=$?
-  # params=(
-  #   "${SBCL_CFG_FILE}"
-  #   "${SBCL_CFG_TPL}"
-  #   "${SBCL_CFG_CTX}"
-  # )
-  # setup_sbclrc_file "${params[@]}"
-  # rc=$?
   params=(
     EMACS_CFG_FILES
   )

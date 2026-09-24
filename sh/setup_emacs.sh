@@ -535,9 +535,9 @@ ensure_configuration() {
   "*.el")
     # TODO: add support for doom/vanilla later
     if [[ -v DOOMDIR ]]; then
-      die 1 "this script does not support EMACS_FLAVOR=doom"
+      die 1 "This script does not support EMACS_FLAVOR=doom"
     fi
-    die 1 "this script does not support EMACS_FLAVOR=vanilla"
+    die 1 "This script does not support EMACS_FLAVOR=vanilla"
     ;;
   *)
     die 1 "this script does not support this configuration file: ${config_file}"

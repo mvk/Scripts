@@ -485,6 +485,7 @@ svc_setup_systemctl() {
   unit_file="${1?cannot continue without unit_file}"
   unit="${unit_file##/*}"
   unit="${unit%*.}"
+  log.debug "Inside ${FUNCNAME[0]}()"
   log.debug "Detected unit ${unit} from unit_file ${unit_file}"
 
   cmd.run 0 "${SVC_MGMT_BIN}" --user daemon-reload
@@ -510,6 +511,7 @@ svc_setup_launchctl() {
   service="${service_file##/*}"
   service="${service%*.}"
 
+  log.debug "Inside ${FUNCNAME[0]}()"
   log.debug "Detected service ${service} from plist file ${service_file}"
   cmd.run 0 "${SVC_MGMT_BIN}" stop "${service}"
   rc=$?
@@ -527,12 +529,15 @@ svc_setup() {
   local \
     service_file \
     os \
-    svc_enable_function
+    svc_enable_function \
+    rc
   service_file="${1?cannot continue without service_file}"
-  os="${2:-"${EMACS_OS}"}"
+  os="${2?cannot continue without os}"
   svc_enable_function="svc_setup_${SVC_MGMT_BIN_MAP[${os}]}"
+  log.debug "Inside ${FUNCNAME[0]}()"
   "${svc_enable_function}" "${service_file}"
-  return $?
+  rc=$?
+  return "${rc}"
 }
 
 svc_templates_setup_Darwin() {
@@ -548,9 +553,7 @@ svc_templates_setup_Darwin() {
   ctx_file="${3?cannot continue without ctx_file}"
   actual_ctx_file="${tpl_file%.*}.context.yaml"
   ctx_tpl_file="${actual_ctx_file}.j2"
-  log.debug "service_file: ${service_file}"
-  log.debug "tpl_file: ${tpl_file}"
-  log.debug "ctx_file: ${ctx_file}"
+  log.debug "Inside ${FUNCNAME[0]}()"
   log.debug "actual_ctx_file: ${actual_ctx_file}"
   log.debug "ctx_tpl_file: ${ctx_tpl_file}"
   render_template "${actual_ctx_file}" "${ctx_tpl_file}" "${ctx_file}"
@@ -571,9 +574,10 @@ svc_templates_setup_Linux() {
   service_file="${1?cannot continue without service_file}"
   tpl_file="${2?cannot continue without tpl_file}"
   ctx_file="${3?cannot continue without ctx_file}"
+  log.debug "Inside ${FUNCNAME[0]}()"
   render_template "${service_file}" "${tpl_file}" "${ctx_file}"
   rc=$?
-  log.debug "Generated ${service_file} from ${tpl_file} and ${ctx_file} with rc=${rc}"
+  log.info "Generated: ${service_file} from template: ${tpl_file} and context: ${ctx_file} with rc=${rc}"
   return "${rc}"
 }
 
@@ -589,10 +593,7 @@ svc_templates_setup() {
   tpl_file="${2?cannot continue without tpl_file}"
   ctx_file="${3?cannot continue without ctx_file}"
   os="${4:-"${EMACS_OS}"}"
-  log.debug "service_file: ${service_file}"
-  log.debug "tpl_file: ${tpl_file}"
-  log.debug "ctx_file: ${ctx_file}"
-  log.debug "os: ${os}"
+  log.debug "Inside ${FUNCNAME[0]}()"
   svc_templates_setup_method="svc_templates_setup_${os}"
   log.debug "Detected svc_template_setup_method to be: ${svc_templates_setup_method}"
   "${svc_templates_setup_method}" "${service_file}" "${tpl_file}" "${ctx_file}"
@@ -611,6 +612,7 @@ setup_emacs_svc() {
   tpl_file="${2:-"${EMACS_SVC_TPL}"}"
   ctx_file="${3:-"${EMACS_SVC_CTX}"}"
   os="${4:-"${EMACS_OS}"}"
+  log.debug "Inside ${FUNCNAME[0]}()"
   log.debug "service_file: ${service_file}"
   log.debug "tpl_file: ${tpl_file}"
   log.debug "ctx_file: ${ctx_file}"
@@ -619,12 +621,11 @@ setup_emacs_svc() {
   # skip_existing "${FUNCNAME[0]}" "${install_root}/${service_file}" || return 0
   svc_templates_setup "${service_file}" "${tpl_file}" "${ctx_file}" "${os}"
   rc=$?
-  log.debug "Rendered ${service_file} with rc=${rc}"
-  [[ "${rc}" -eq 0 ]] || die 1 "Failed to render ${service_file}"
-  return "${rc}"
+  [[ "${rc}" -eq 0 ]] || die 1 "Failed to render the file: ${service_file}"
   svc_setup "${service_file}" "${os}"
   rc=$?
-  log.debug "Started the service with ${service_file} with rc=${rc}"
+  log.info "Started the service with ${service_file} with rc=${rc}"
+  [[ "${rc}" -eq 0 ]] || die 1 "Failed to start the service: ${service_file}"
   return "${rc}"
 }
 ################################################################################

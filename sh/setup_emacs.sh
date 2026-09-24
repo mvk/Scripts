@@ -375,7 +375,6 @@ setup_emacs_cfg_dir() {
   return "${rc}"
 }
 
-
 render_template() {
   local \
     output \
@@ -457,25 +456,6 @@ setup_emacs_cfg_files() {
   skip_disabled "${FUNCNAME[0]}" || return 0
   render_templates_from_tuple "${cfg_files_assoc_array}"
   sync_update_emacs_cfg "${EMACS_FLAVOR}"
-  rc=$?
-  return "${rc}"
-}
-
-setup_sbclrc_file() {
-  local \
-    cfg_file \
-    trg_base \
-    tpl_file \
-    ctx_file \
-    rc
-  cfg_file="${1?cannot continue without cfg_file}" # is generated
-  skip_disabled "${FUNCNAME[0]}" || return 0
-  skip_existing "${FUNCNAME[0]}" "${cfg_file}" || return 0
-  trg_base="$(basename "${cfg_file}")"
-  tpl_file="${2:-"${trg_base}.j2"}"           # must exist
-  ctx_file="${3:-"${trg_base}.context.yaml"}" # is generated
-  # ensure template exists
-  render_template "${cfg_file}" "${tpl_file}" "${ctx_file}"
   rc=$?
   return "${rc}"
 }

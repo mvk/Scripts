@@ -101,11 +101,11 @@ APT_FLAGS=(
 APT_PACKAGES=(
   emacs-gtk
   fd-find
-  gcc
   g++
+  gcc
   make
-  rlwrap
   ripgrep
+  rlwrap
 )
 
 DNF_FLAGS=(
@@ -114,39 +114,39 @@ DNF_FLAGS=(
 
 DNF_PACKAGES=(
   emacs
+  fd-find
+  gcc
   gcc
   make
-  rlwrap
-  fd-find
   ripgrep
-  gcc
+  rlwrap
 )
 
 BREW_PACKAGES=(
   emacs-app@nightly
-  make
-  llvm@21
-  rlwrap
   fd
+  llvm@21
+  make
   ripgrep
+  rlwrap
 )
 if [[ "${MU4E_ENABLED}" -gt 0 ]]; then
   APT_PACKAGES+=(
     git
-    meson
     libgmime-3.0-dev
     libxapian-dev
+    meson
   )
   DNF_PACKAGES+=(
     git
-    meson
     gmime30-devel
+    meson
     xapian-core-devel
   )
   BREW_PACKAGES+=(
     git
-    meson
     gmime
+    meson
     xapian
   )
 fi

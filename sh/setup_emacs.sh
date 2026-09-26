@@ -11,9 +11,12 @@ else
   EMACS_CFG_FILES=()
 fi
 EMACS_OS="${EMACS_OS:-"$(uname -s || true)"}"
-declare -A SVC_MGMT_BIN_MAP
-SVC_MGMT_BIN_MAP["Linux"]="systemctl"
-SVC_MGMT_BIN_MAP["Darwin"]="launchctl"
+
+if ! declare -p SVC_MGMT_BIN_MAP 2>/dev/null | grep -q '^declare -A'; then
+  declare -A SVC_MGMT_BIN_MAP
+  SVC_MGMT_BIN_MAP["Linux"]="systemctl"
+  SVC_MGMT_BIN_MAP["Darwin"]="launchctl"
+fi
 
 if [[ -d "${SCRIPT_DIR}/lib" ]]; then
   for fname in "${SCRIPT_DIR}/lib"/*.bash; do
@@ -25,11 +28,14 @@ if [[ -d "${SCRIPT_DIR}/lib" ]]; then
     source "${fname}"
   done
 fi
-declare -a EXTRA_SCRIPTS
-EXTRA_SCRIPTS=(
-  ".${EMACS_OS}.env.${SCRIPT_NAME%%.*}.bash"
-  .env."${SCRIPT_NAME%%.*}".bash
-)
+if ! declare -p EXTRA_SCRIPTS 2>/dev/null | grep -q '^declare -A'; then
+  declare -a EXTRA_SCRIPTS
+  EXTRA_SCRIPTS=(
+    ".${EMACS_OS}.env.${SCRIPT_NAME%%.*}.bash"
+    .env."${SCRIPT_NAME%%.*}".bash
+  )
+fi
+
 for fname in "${EXTRA_SCRIPTS[@]}"; do
   # shellcheck disable=SC1090
   [[ -r "${fname}" ]] && source "${fname}"
@@ -94,50 +100,53 @@ APT_FLAGS=(
 )
 APT_PACKAGES=(
   emacs-gtk
-  gcc
+  fd-find
   g++
+  gcc
   make
-  rlwrap
   ripgrep
+  rlwrap
 )
 
 DNF_FLAGS=(
   -y
 )
+
 DNF_PACKAGES=(
   emacs
+  fd-find
+  gcc
   gcc
   make
-  rlwrap
-  fd-find
   ripgrep
+  rlwrap
 )
 
 BREW_PACKAGES=(
   emacs-app@nightly
-  make
-  llvm@21
-  rlwrap
   fd
+  llvm@21
+  make
   ripgrep
+  rlwrap
 )
 if [[ "${MU4E_ENABLED}" -gt 0 ]]; then
   APT_PACKAGES+=(
     git
-    meson
     libgmime-3.0-dev
     libxapian-dev
+    meson
   )
   DNF_PACKAGES+=(
     git
-    meson
     gmime30-devel
+    meson
     xapian-core-devel
   )
   BREW_PACKAGES+=(
     git
-    meson
     gmime
+    meson
     xapian
   )
 fi
@@ -169,19 +178,14 @@ run.detect_distro_id() {
 }
 
 run.ensure_apps() {
-  local \
-    app
-  local -a \
-    apps
-  apps=("${@}")
-  if [[ "${#apps[@]}" -eq 0 ]]; then
+  local app
+  local -a apps=("${@}")
+  [[ "${#apps[@]}" -eq 0 ]] && {
     log.warn "${FUNCNAME[0]} got 0 apps to ensure"
     return 0
-  fi
-  for app in "${apps[@]}"; do
-    command -v "${app}" >/dev/null || return 1
-  done
-
+  }
+  for app in "${apps[@]}"; do command -v "${app}" >/dev/null || return 1; done
+  return 0
 }
 
 runner.dnf() {
@@ -260,22 +264,20 @@ run.pkg() {
   pkg_runner="runner.${DISTRO_ID_PKG_MGR_MAP["${distro_id}"]}"
   case "${DISTRO_ID_PKG_MGR_MAP["${distro_id}"]}" in
   "apt")
-    packages=("${APT_PACKAGES[@]}")
+    packages+=("${APT_PACKAGES[@]}")
     ;;
   "dnf")
-    packages=("${DNF_PACKAGES[@]}")
+    packages+=("${DNF_PACKAGES[@]}")
     ;;
   "brew")
-    packages=("${BREW_PACKAGES[@]}")
+    packages+=("${BREW_PACKAGES[@]}")
     ;;
   *)
     log.fatal "Unsupported distribution id: ${distro_id}"
     die 1 "Supported distribution ids: ${!DISTRO_ID_PKG_MGR_MAP[*]}"
     ;;
   esac
-  if [[ "${#EXTRA_PACKAGES[@]}" -gt 0 ]]; then
-    packages+=("${EXTRA_PACKAGES[@]}")
-  fi
+  [[ "${#EXTRA_PACKAGES[@]}" -eq 0 ]] || packages+=("${EXTRA_PACKAGES[@]}")
   "${pkg_runner}" "${op}" "${packages[@]}"
   return 0
 }
@@ -366,7 +368,7 @@ setup_emacs_cfg_dir() {
     cmd.run 0 git pull
     rc=$?
     log.debug "updated current code-base with rc=${rc}"
-    cd ../
+    popd >/dev/null || die 1 "failed to popd"
   else
     log.info "cloning ${repo_url} for the 1st time into ${target_dir}"
     cmd.run 0 git clone "${repo_url}" "${target_dir}"

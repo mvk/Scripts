@@ -240,3 +240,77 @@ run.pkg() {
   "${pkg_runner}" "${op}" "${packages[@]}"
   return 0
 }
+
+run.git_clone_lazy() {
+  local \
+    repo_url \
+    local_path \
+    branch
+
+  repo_url="${1?cannot continue without repo_url}"
+  local_path="${2?cannot continue without local_path}"
+  branch="${3:-"main"}"
+
+  pushd "${PWD}" >/dev/null || die 1 "failed to 'pushd ${PWD}'"
+  mkdir -p "${local_path}"
+  cd "${local_path}" || die 1 "failed to 'cd ${local_path}'"
+  if [[ ! -d .git ]]; then
+    cmd.run 0 git init
+    cmd.run 0 git remote add origin "${repo_url}"
+  fi
+  cmd.run 0 git fetch origin "${branch}"
+  cmd.run 0 git checkout "${branch}"
+  popd >/dev/null || die 1 "failed to 'popd'"
+}
+
+skip_disabled() {
+  local \
+    func_name \
+    skip_setup
+  local -n \
+    skip_setup_ref
+  func_name="${1:-"${FUNCNAME[1]}"}"
+  skip_setup_ref="${func_name^^}_SKIP"
+  skip_setup="${skip_setup_ref}"
+  # handle unset variable:
+  [[ -z "${skip_setup}" ]] && return 0
+  if [[ "${skip_setup}" -gt 0 ]]; then
+    log.info "Skip running ${func_name}(). [REASON: ${func_name^^}_SKIP=${skip_setup}]"
+    return 1
+  fi
+  return 0
+}
+
+skip_existing() {
+  local \
+    func_name \
+    item
+  local -a \
+    file_paths
+  func_name="${1:-"${FUNCNAME[1]}"}"
+  shift 1
+  file_paths=("${@}")
+  for item in "${file_paths[@]}"; do
+    if [[ -e "${item}" ]]; then
+      if [[ "${SCRIPT_FORCE}" -eq 0 ]]; then
+        log.info "Skip running ${func_name}(). [REASON: file path: ${item} already present]"
+        return 1
+      fi
+      # otherwise:
+      mv "${item}" "${item}.${SCRIPT_ID}"
+      log.debug "renamed ${item} to ${item}.${SCRIPT_ID}"
+    fi
+  done
+  return 0
+}
+
+setup_packages() {
+  local \
+    distro_id
+  skip_disabled "${FUNCNAME[0]}" || return 0
+  distro_id="${1:-"$(run.detect_distro_id)"}"
+  run.pkg "${distro_id}" install
+  rc=$?
+  log.info "Completed ${FUNCNAME[0]} with rc=${rc}"
+  return "${rc}"
+}

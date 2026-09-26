@@ -368,7 +368,7 @@ setup_emacs_cfg_dir() {
     cmd.run 0 git pull
     rc=$?
     log.debug "updated current code-base with rc=${rc}"
-    cd ../
+    popd >/dev/null || die 1 "failed to popd"
   else
     log.info "cloning ${repo_url} for the 1st time into ${target_dir}"
     cmd.run 0 git clone "${repo_url}" "${target_dir}"

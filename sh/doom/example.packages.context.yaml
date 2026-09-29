@@ -1,0 +1,74 @@
+---
+
+packages_standard:
+  - comment: "tidal cycles"
+    name: tidal
+  - comment: "Nu-shell mode"
+    name: nushell-mode
+  - comment: "Mermaid diagrams support"
+    name: mermaid-mode
+  - comment: "Org-Mode Mermaid support"
+    name: ob-mermaid
+  - comment: "Org contrib"
+    name: org-contrib
+  - comment: "Modern org-mode look"
+    name: org-modern
+  - comment: "Show formatting characters visible when editing"
+    name: org-appear
+
+# packages_recipe: []
+packages_recipe:
+  - name: org
+    recipe:
+      host: nil
+      repo: https://git.savannah.gnu.org/git/emacs/org-mode.git
+      branch: main
+      files:
+        - "*"
+        - "doc/org.text"
+        - "lisp/*.el"
+    pin: nil
+# packages_recipe:
+#   - name: pkg           # Package name
+#     recipe:
+#       host: github        # git server or url
+#       team: tm1           # team/user
+#       repo: repo1         # repository
+#       branch: br1         # branch/tag/hash
+#       nonrecursive: true  # Do not pull git submodules recursively
+#       files:              # Limit/specify list of files
+#         - folder/file.el  # direct path
+#         - src/lisp/*.el   # regular expression
+#       build:
+#         - ":compile"
+#         - ":not native-compile"
+#         - ":autoloads t"
+#         - |-
+#           (:custom (("make" "all")
+#                                        ("make" "info")))
+#     pin: <version or nil>
+# (package! org
+#   :recipe (:host nil
+#            :repo "https://git.tecosaur.net/mirrors/org-mode.git"
+#            :branch "main"
+#            :files ("*" "doc/org.texi" "doc/org-setup.org" "lisp/*.el"))
+#   :pin nil)
+
+packages_disabled: []
+# packages_disabled:
+#   - name: abc
+
+packages_pinned: []
+# packages_pinned:
+#   - name: pkg1      # Package name
+#     pin: v1.2.3     # tag
+#   - name: pkg2
+#     pin: develop    # branch
+#   - name: pkg2
+#     pin: 1a2b3c4d5e # commit id
+#
+
+packages_unpinned: []
+# packages_unpinned:
+#   - name: pkg1
+#   - name: pkg2

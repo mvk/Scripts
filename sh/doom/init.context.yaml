@@ -57,6 +57,10 @@ doom_init:
         - guess
         - trim
       comment: a butler for your whitespace
+    - name: format
+      extras:
+        - onsave
+      comment: automatically format on save
 
   emacs:
     - name: dired
@@ -95,6 +99,8 @@ doom_init:
     - name: lookup
       comment: navigate your code and its documentation
     - name: llm
+      extras:
+        - gptel
       comment: when I said you needed friends, I didn't mean...
     - name: magit
       comment: a git porcelain for Emacs

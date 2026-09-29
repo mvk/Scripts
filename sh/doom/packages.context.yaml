@@ -9,8 +9,25 @@ packages_standard:
     name: mermaid-mode
   - comment: "Org-Mode Mermaid support"
     name: ob-mermaid
+  - comment: "Org contrib"
+    name: org-contrib
+  - comment: "Modern org-mode look"
+    name: org-modern
+  - comment: "Show formatting characters visible when editing"
+    name: org-appear
 
-packages_recipe: []
+# packages_recipe: []
+packages_recipe:
+  - name: org
+    recipe:
+      host: nil
+      repo: https://git.savannah.gnu.org/git/emacs/org-mode.git
+      branch: main
+      files:
+        - "*"
+        - "doc/org.text"
+        - "lisp/*.el"
+    pin: nil
 # packages_recipe:
 #   - name: pkg           # Package name
 #     recipe:
@@ -29,7 +46,13 @@ packages_recipe: []
 #         - |-
 #           (:custom (("make" "all")
 #                                        ("make" "info")))
-
+#     pin: <version or nil>
+# (package! org
+#   :recipe (:host nil
+#            :repo "https://git.tecosaur.net/mirrors/org-mode.git"
+#            :branch "main"
+#            :files ("*" "doc/org.texi" "doc/org-setup.org" "lisp/*.el"))
+#   :pin nil)
 
 packages_disabled: []
 # packages_disabled:
@@ -44,7 +67,6 @@ packages_pinned: []
 #   - name: pkg2
 #     pin: 1a2b3c4d5e # commit id
 #
-
 
 packages_unpinned: []
 # packages_unpinned:

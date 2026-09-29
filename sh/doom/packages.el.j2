@@ -27,10 +27,14 @@
            {% if "repo" in pkg.recipe %}:repo "{{ pkg.recipe.repo }}"{% endif %}
            {% if "branch" in pkg.recipe %}:branch "{{ pkg.recipe.branch }}"{% endif %}
            {% if "nonrecursive" in pkg.recipe and pkg.recipe.nonrecursive %}:nonrecursive t{% endif %}
-           {% if ("files" in pkg.recipe) and (pkg.recipe.files | default([]) | length) %}:files ({%- for fpattern in pkg.recipe.files %}{%- if not loop.first %}{{"\n                   "}}{%- endif %}"{{ fpattern }}"{% endfor -%})
-           {% endif -%}
+           {%- if ("files" in pkg.recipe) and (pkg.recipe.files | default([]) | length) %}:files (
+           {%- for fpattern in pkg.recipe.files %}{%- if not loop.first -%}{{"\n                   "}}{%- endif %}"{{ fpattern }}"{% endfor -%})
+           {%- endif -%}
            {% if ("build" in pkg.recipe) and (pkg.recipe.build | default([]) | length) %}:build ({%- for item in pkg.recipe.build %}{%- if not loop.first %}{{"\n                   "}}{%- endif %}{{ item }}{% endfor -%})
            {%- endif -%})
+{%- if "pin" in pkg and pkg.pin %}
+  :pin{%- if pkg.pin != "nil" %}{%- set pin_value = '"' + pkg.pin + '"' -%}{% else %}{%- set pin_value = pkg.pin -%}{% endif %} {{ pin_value }}
+{%- endif -%}
 {%- endif -%})
 {% else %}
 ;; To install a package directly from a remote git repo, you must specify a

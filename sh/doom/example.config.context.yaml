@@ -7,11 +7,11 @@ doom_user:
 doom_fonts:
   - name: ''
     family: FiraCode Nerd Font
-    size: 16
+    size: 20
     weight: regular
   - name: variable-pitch
     family: FiraSans
-    size: 17
+    size: 18
   - name: big
     family: FiraCode Nerd Font
     size: 24
@@ -201,19 +201,83 @@ doom_extra_settings:
           (mu4e-drafts-folder     . "/iCloud/Drafts")
           (mu4e-trash-folder      . "/iCloud/Archive")
           (mu4e-refile-folder     . "/iCloud/Archive")
-          (smtpmail-smtp-server   . "smtp.mail.me.com")
+          (smtpmail-smtp-server   . "<smtp server>")
           (smtpmail-smtp-service  . 587)
           (smtpmail-stream-type   . starttls)
-          (smtpmail-smtp-user     . "username"))
+          (smtpmail-smtp-user     . "<smtp username>"))
         t))
     ;; (setq message-send-mail-function 'smtpmail-send-it
-    ;;       smtpmail-smtp-server "smtp.mail.me.com"
+    ;;       smtpmail-smtp-server "<smtp server>"
     ;;       smtpmail-smtp-service 587
     ;;       smtpmail-stream-type 'starttls
-    ;;       smtpmail-smtp-user "username")
+    ;;       smtpmail-smtp-user "<smtp username>")
   - |
     ;; =============================================================================
     ;; EXTRAS - additional settings
     ;; =============================================================================
     ;; Prevent Doom from routing EWW buffers into bottom popups
     (set-popup-rule! "^\\*eww" :ignore t)
+
+
+  - |
+    ;; =============================================================================
+    ;; LLM configuration
+    ;; =============================================================================
+    (after! gptel
+      ;; Define Anthropic Claude as a backend
+      (gptel-make-anthropic "Claude"
+        :stream t
+        :key (lambda () (getenv "ANTHROPIC_API_KEY"))
+        (setq gptel-model 'claude-3-4-sonnet.5-flash
+              gptel-backend (gptel-make-gemini "Claude"
+                             :stream t
+                             :key (lambda () (getenv "ANTHROPIC_API_KEY"))))))
+
+  - |
+    ;; =============================================================================
+    ;; formatter configuration
+    ;; =============================================================================
+    ;; 1. Use shfmt using 2 spaces indentation and binary path/args
+    (set-formatter! 'shfmt
+      '("shfmt" "-i" "2" "-ci" "-s")
+      :modes '(sh-mode bash-ts-mode))
+    ;; 2. Ensure Apheleia maps sh-mode to shfmt
+    ;;         setf (alist-get 'shfmt apheleia-formatters)
+    ;;           '("shfmt" "-i" "2" "-ci" "-s")
+    (after! apheleia
+      (setf (alist-get 'shfmt apheleia-formatters)
+            '("shfmt" "-i" "2" "-ci" "-s"))
+      (setf (alist-get 'sh-mode apheleia-mode-alist) 'shfmt)
+      (setf (alist-get 'bash-ts-mode apheleia-mode-alist) 'shfmt))
+
+  - |
+    ;; =============================================================================
+    ;; keyboard shortcuts configuration
+    ;; =============================================================================
+    (autoload 'doom/increase-font-size "doom-ui" nil t)
+    (autoload 'doom/decrease-font-size "doom-ui" nil t)
+    ;; (map! "C-c +" #'doom/increase-font-size
+    ;;       "C-c =" #'doom/increase-font-size
+    ;;       "C-c -" #'doom/decrease-font-size))
+    ;; Local buffer font scaling
+    (bind-key* "C-c +" #'text-scale-increase)
+    (bind-key* "C-c =" #'text-scale-increase)
+    (bind-key* "C-c -" #'text-scale-decrease)
+    ;; Global frame font scaling (Doom core equivalent)
+    (bind-key* "C-c C-+" #'default-text-scale-increase)
+    (bind-key* "C-c C-=" #'default-text-scale-increase)
+    (bind-key* "C-c C--" #'default-text-scale-decrease)
+    ;; Map string representations
+    ;; (global-set-key (kbd "C-+") #'doom/increase-font-size)
+    ;; (global-set-key (kbd "C-=") #'doom/increase-font-size)
+    ;; (global-set-key (kbd "C--") #'doom/decrease-font-size)
+    ;; (map! "C-c C-+" #'doom/increase-font-size
+    ;;       "C-c C-=" #'doom/increase-font-size
+    ;;       "C-c C--" #'doom/decrease-font-size)
+    ;;
+    ;; ;; Priority overrides addressing terminal or mode-map precedence
+    ;; (bind-key* "C-c C-+" #'doom/increase-font-size)
+    ;; (bind-key* "C-c C-=" #'doom/increase-font-size)
+    ;; (bind-key* "C-c C--" #'doom/decrease-font-size)
+    ;;
+

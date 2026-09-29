@@ -1,5 +1,7 @@
 .env.setup_emacs.bash
 bats/
 claude-desktop-fedora
+doom/init.context.yaml
 doom/config.context.yaml
+doom/packages.context.yaml
 Library/LaunchAgents/gnu.emacs-server-flavor.daemon.plist.context.yaml

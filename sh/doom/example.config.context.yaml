@@ -7,11 +7,11 @@ doom_user:
 doom_fonts:
   - name: ''
     family: FiraCode Nerd Font
-    size: 16
+    size: 20
     weight: regular
   - name: variable-pitch
     family: FiraSans
-    size: 17
+    size: 18
   - name: big
     family: FiraCode Nerd Font
     size: 24
@@ -201,16 +201,16 @@ doom_extra_settings:
           (mu4e-drafts-folder     . "/iCloud/Drafts")
           (mu4e-trash-folder      . "/iCloud/Archive")
           (mu4e-refile-folder     . "/iCloud/Archive")
-          (smtpmail-smtp-server   . "smtp.mail.me.com")
+          (smtpmail-smtp-server   . "<smtp server>")
           (smtpmail-smtp-service  . 587)
           (smtpmail-stream-type   . starttls)
-          (smtpmail-smtp-user     . "username"))
+          (smtpmail-smtp-user     . "<smtp username>"))
         t))
     ;; (setq message-send-mail-function 'smtpmail-send-it
-    ;;       smtpmail-smtp-server "smtp.mail.me.com"
+    ;;       smtpmail-smtp-server "<smtp server>"
     ;;       smtpmail-smtp-service 587
     ;;       smtpmail-stream-type 'starttls
-    ;;       smtpmail-smtp-user "username")
+    ;;       smtpmail-smtp-user "<smtp username>")
   - |
     ;; =============================================================================
     ;; EXTRAS - additional settings

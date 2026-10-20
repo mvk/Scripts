@@ -1,17 +1,26 @@
 #!/usr/bin/env bash
 
 SCRIPT_DEBUG="${SCRIPT_DEBUG:-"0"}"
-DATE_OPTS="${DATE_OPTS:-"--rfc-3339=sec"}"
+DATE_CMD_OPTS="${DATE_CMD_OPTS:-"--rfc-3339=sec"}"
 EXIT_FAILURE="${EXIT_FAILURE:-1}"
 DO_NOT_EXIT="${DO_NOT_EXIT:-"0"}"
 CURR_OS="$(uname -s || true)"
-
+declare -a OS_SUPPORTED
+OS_SUPPORTED=(
+  "Linux"
+  "Darwin"
+)
+ARCH_SUPPORTED=(
+  "x86_64"
+  "aarch64"
+  "arm64"
+)
 case "${CURR_OS}" in
 "Linux")
-  DATE="$(command -v date || true)"
+  DATE_CMD="$(command -v date || true)"
   ;;
 "Darwin")
-  DATE="$(command -v gdate || true)"
+  DATE_CMD="$(command -v gdate || true)"
   ;;
 *)
   echo -e "FATAL: unsupported Operating System: ${CURR_OS}" >&2
@@ -29,12 +38,12 @@ log.msg() {
   case "${level}" in
   "DEBUG" | "ERROR" | "FATAL" | "TRACE")
     # These levels print to stderr
-    echo -e "$("${DATE}" "${DATE_OPTS}" || true) - ${level} - ${*}" >&2
+    echo -e "$("${DATE_CMD}" "${DATE_CMD_OPTS}" || true) - ${level} - ${*}" >&2
     # shellcheck disable=SC2320
     rc=$?
     ;;
   *)
-    echo -e "$("${DATE}" "${DATE_OPTS}" || true) - ${level} - ${*}"
+    echo -e "$("${DATE_CMD}" "${DATE_CMD_OPTS}" || true) - ${level} - ${*}"
     # shellcheck disable=SC2320
     rc=$?
     ;;
@@ -87,6 +96,13 @@ die() {
   "${exit_func}" "${rc}"
 }
 
+str.join_by() {
+  local d="${1-}" f="${2-}"
+  if shift 2; then
+    printf '%s' "${f}" "${@/#/$d}"
+  fi
+}
+
 cmd.run() {
   local \
     success_rc \
@@ -122,7 +138,7 @@ run.detect_distro_id() {
     id="${1:-"$(lsb_release -s -i || echo "UNSUPPORTED")"}"
     ;;
   *)
-    die 1 "Unsupported OS: ${os}"
+    die 1 "Unsupported OS: ${os}. We support only: [$(str.join_by "', '" "${OS_SUPPORTED[@]}")']"
     ;;
   esac
   if ! [[ -v DISTRO_ID_PKG_MGR_MAP["${id}"] ]]; then
@@ -313,4 +329,49 @@ setup_packages() {
   rc=$?
   log.info "Completed ${FUNCNAME[0]} with rc=${rc}"
   return "${rc}"
+}
+
+system.kernel() {
+  uname -s
+  return $?
+}
+
+system.arch() {
+  uname -m
+  return $?
+}
+
+system.kernel.is_supported() {
+  local -n var="${1:-"OS"}"
+  [[ -z "${var}" ]] && var=$(system.kernel)
+  case "${var}" in
+  "Linux" | "Darwin")
+    return 0
+    ;;
+  *)
+    die 1 "Unsupported OS: '${var}'. Supported: $(str.join_by "|" "${OS_SUPPORTED[@]}")"
+    ;;
+  esac
+  return 0
+}
+
+system.arch.is_supported() {
+  local -n var="${1:-"ARCH"}"
+  [[ -z "${var}" ]] && var=$(system.arch)
+  case "${var}" in
+  "x86_64")
+    var="amd64"
+    ;;
+  "aarch64" | "arm64")
+    var="arm64"
+    ;;
+  *)
+    die 1 "Unsupported architecture: '${var}'. Supported: $(str.join_by "|" "${ARCH_SUPPORTED[@]}")"
+    ;;
+  esac
+}
+
+system.is_supported() {
+  system.arch.is_supported
+  system.kernel.is_supported
 }

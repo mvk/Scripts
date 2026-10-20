@@ -78,6 +78,8 @@ DNF_PACKAGES=(
   pkgconf-pkg-config
   pulseaudio-libs-devel
   systemd-devel
+  libxkbcommon-devel
+  libxkbcommon-x11-devel
 )
 
 BREW_PACKAGES=(

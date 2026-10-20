@@ -149,10 +149,8 @@ setup_rustup() {
   if run.ensure_apps "${apps[@]}"; then
     log.info "the apps: ${apps[*]} are already installed"
     return 0
-  else
-    log.error "cannot find ${apps[*]} on PATH"
-    exit 0
   fi
+  log.info "cannot find ${apps[*]} on PATH. Installing Rust."
 
   cmd.run 0 curl "${CURL_OPTS[@]}" "${rustup_url}" -o /tmp/rustup.sh
   cmd.run 0 bash /tmp/rustup.sh --profile "${rustup_profile}" --yes
